@@ -1,6 +1,8 @@
 import { html, $ } from './dom.js';
 import { on } from '../events.js';
 import { listConversations, updateConversation, deleteConversation } from '../data/conversations.js';
+import { exportConversation } from '../export/export-actions.js';
+import { toast } from './toast.js';
 
 export function renderSidebar(el) {
   el.innerHTML = html`
@@ -37,6 +39,7 @@ function mountConversationList(listEl) {
           <li class="conv-item" data-id="${c.id}">
             <a class="conv-link" href="#/chat/${c.id}" title="${c.title}">${c.title}</a>
             <span class="conv-actions">
+              <button type="button" class="icon-btn" data-action="export" aria-label="Export “${c.title}” as Markdown" title="Export Markdown">⤓</button>
               <button type="button" class="icon-btn" data-action="rename" aria-label="Rename “${c.title}”" title="Rename">✎</button>
               <button type="button" class="icon-btn" data-action="delete" aria-label="Delete “${c.title}”" title="Delete">✕</button>
             </span>
@@ -109,6 +112,7 @@ function mountConversationList(listEl) {
     if (!button) return;
     const item = button.closest('.conv-item');
     const { action } = button.dataset;
+    if (action === 'export') exportConversation(item.dataset.id).catch((err) => toast(`Export failed: ${err.message}`, { kind: 'error' }));
     if (action === 'rename') startRename(item);
     if (action === 'delete') startDelete(item);
     if (action === 'cancel-delete') { finishEditing(); draw(); }

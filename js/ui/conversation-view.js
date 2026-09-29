@@ -1,6 +1,7 @@
 import { html, $ } from './dom.js';
 import { mascot } from './mascot.js';
-import { messageElement, thoughts, statusLine, cacheHtml } from './message-view.js';
+import { messageElement, messageActions, thoughts, statusLine, cacheHtml } from './message-view.js';
+import { toast } from './toast.js';
 import { createComposer } from './composer.js';
 import { emit, on } from '../events.js';
 import { getConversation } from '../data/conversations.js';
@@ -10,6 +11,7 @@ import { presetFor } from '../providers/index.js';
 import { createChatSession } from '../chat/session.js';
 import { createStreamRenderer } from '../render/stream-renderer.js';
 import { recordPaint } from '../dev/perf.js';
+import { copyRendered, copyMarkdown, exportMessage, exportConversation } from '../export/export-actions.js';
 
 const PAGE_SIZE = 30; // messages rendered per history page
 const FOLLOW_THRESHOLD = 40; // px from the bottom that still counts as "following"
@@ -38,6 +40,7 @@ export async function renderConversation(main, { id, modelId }) {
       <header class="chat-header">
         <h2 class="chat-title">${conversation?.title ?? 'New conversation'}</h2>
         <span class="model-chip" title="${model ? `${presetFor(model.preset).label} · ${model.model}` : 'Model removed'}">✦ ${modelName}</span>
+        <button type="button" class="btn btn-ghost btn-sm" data-action="export-conversation" ${conversation ? '' : 'disabled'}>Export</button>
       </header>
       <div class="chat-log"></div>
       <div class="composer-dock">
@@ -48,6 +51,40 @@ export async function renderConversation(main, { id, modelId }) {
   const log = $('.chat-log', main);
   const title = $('.chat-title', main);
   const pill = $('.latest-pill', main);
+  const exportButton = $('[data-action="export-conversation"]', main);
+  const byId = new Map(messages.map((m) => [m.id, m]));
+
+  // ── Copy / export ───────────────────────────────────────────────────────
+  function flash(button, label) {
+    const original = button.dataset.label ??= button.textContent;
+    button.textContent = label;
+    clearTimeout(button.flashTimer);
+    button.flashTimer = setTimeout(() => { button.textContent = original; }, 1400);
+  }
+
+  log.addEventListener('click', async (e) => {
+    const button = e.target.closest('[data-msg-action]');
+    if (!button) return;
+    const el = button.closest('.message');
+    const message = byId.get(el?.dataset.id);
+    if (!message) return;
+    try {
+      const action = button.dataset.msgAction;
+      if (action === 'copy') { await copyRendered($('.message-body', el)); flash(button, 'Copied'); }
+      if (action === 'copy-markdown') { await copyMarkdown(message); flash(button, 'Copied'); }
+      if (action === 'export') exportMessage(message);
+    } catch (err) {
+      toast(`Couldn’t copy: ${err.message}`, { kind: 'error' });
+    }
+  });
+
+  exportButton.addEventListener('click', async () => {
+    try {
+      await exportConversation(session.conversation.id);
+    } catch (err) {
+      toast(`Export failed: ${err.message}`, { kind: 'error' });
+    }
+  });
 
   // ── Following the bottom ────────────────────────────────────────────────
   // Only user scrolling changes `following`; content growth never does.
@@ -166,10 +203,12 @@ export async function renderConversation(main, { id, modelId }) {
       onConversationCreated(conv) {
         history.replaceState(null, '', `#/chat/${conv.id}`);
         title.textContent = conv.title;
+        exportButton.disabled = false;
         emit('route:replaced');
       },
       onUserMessage(message) {
         $('.chat-empty', log)?.remove();
+        byId.set(message.id, message);
         log.append(messageElement(message));
         scrollToBottom();
       },
@@ -207,7 +246,8 @@ export async function renderConversation(main, { id, modelId }) {
             const reasoning = message.metadata.reasoning;
             if (reasoning && !$('.thoughts', el)) el.insertAdjacentHTML('afterbegin', String(thoughts(reasoning)));
             else if (reasoning) $('.thoughts-body', el).textContent = reasoning;
-            el.insertAdjacentHTML('beforeend', String(statusLine(message.metadata.status)));
+            el.insertAdjacentHTML('beforeend', String(statusLine(message.metadata.status)) + messageActions());
+            byId.set(message.id, message);
           } else {
             el.remove();
           }

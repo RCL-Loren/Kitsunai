@@ -30,9 +30,18 @@ export function messageElement(message) {
   el.innerHTML = html`
     ${reasoning ? thoughts(reasoning) : ''}
     <div class="message-body md">${raw(messageHtml(message))}</div>
-    ${statusLine(status)}`;
+    ${statusLine(status)}
+    ${messageActions()}`;
   return el;
 }
+
+// Copy / Copy Markdown / Export; handled by one delegated listener in the view.
+export const messageActions = () => html`
+  <div class="message-actions" role="toolbar" aria-label="Message actions">
+    <button type="button" class="action-btn" data-msg-action="copy">Copy</button>
+    <button type="button" class="action-btn" data-msg-action="copy-markdown">Copy Markdown</button>
+    <button type="button" class="action-btn" data-msg-action="export">Export Markdown</button>
+  </div>`;
 
 export const statusLine = (status) => (status === 'stopped' ? html`<p class="message-status">Stopped</p>` : '');
 

@@ -48,8 +48,8 @@ js/
   chat/session.js         send / stream / stop / retry / persist
   render/                 markdown.js math-plugin.js blocks.js stream-renderer.js code-blocks.js
   ui/                     sidebar.js conversation-view.js message-view.js composer.js
-                          new-chat.js models-screen.js settings-screen.js mascot.js toast.js
-  export/markdown-export.js
+                          new-chat.js models-screen.js settings-screen.js mascot.js toast.js dom.js
+  export/markdown-export.js  (pure formatting)  export-actions.js  (clipboard, downloads)
 assets/   kitsune.svg (symbol sprite, one symbol per state) icon.svg favicon.svg
 vendor/   markdown-it/ highlight/ katex/ fonts/ VERSIONS.md
 scripts/  vendor.sh
@@ -220,7 +220,7 @@ History:
 ## 8. Copy & Export — `export/markdown-export.js` (pure)
 
 Message actions appear on hover or focus under each message:
-- **Copy** writes a `ClipboardItem` with `text/html` (the rendered element's `innerHTML`) and `text/plain` (`innerText`).
+- **Copy** writes a `ClipboardItem` with `text/html` (the rendered message minus code-block headers) and readable `text/plain`: each KaTeX formula is replaced by its TeX source in `$…$` / `$$…$$`, because KaTeX's hidden MathML duplicates every glyph in `innerText`.
 - **Copy Markdown** writes the raw `message.markdown`.
 - **Export Markdown** downloads the message as `.md`.
 

@@ -30,8 +30,23 @@
   text-overflow: ellipsis;
 }
 .conv-item:hover .conv-link, .conv-item.active .conv-link { color: var(--text); }
-.conv-actions { display: flex; opacity: 0; padding-right: 4px; }
-.conv-item:hover .conv-actions, .conv-item:focus-within .conv-actions { opacity: 1; }
+.conv-actions {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 var(--space-5);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  /* Fades the title out under the buttons; matches the hover/active row color. */
+  background: linear-gradient(90deg, transparent, var(--conv-row-bg) 35%);
+  opacity: 0;
+  pointer-events: none;
+}
+.conv-item { --conv-row-bg: color-mix(in oklab, var(--text) 5%, var(--surface)); }
+.conv-item.active { --conv-row-bg: color-mix(in oklab, var(--foxfire) 13%, var(--surface)); }
+.conv-item:hover .conv-actions, .conv-item:focus-within .conv-actions { opacity: 1; pointer-events: auto; }
 .icon-btn {
   display: grid;
   place-items: center;
@@ -239,3 +254,26 @@
 .composer-stop:hover { border-color: var(--ember); }
 .composer-hint { margin: 6px var(--space-2) 0; color: var(--muted); font-size: .75rem; text-align: right; }
 .composer-hint:empty { display: none; }
+
+/* ── Message actions ─────────────────────────────────────────────────────── */
+
+.message-actions {
+  display: flex;
+  gap: 2px;
+  margin: 6px 0 0;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.message-user .message-actions { justify-content: flex-end; }
+.message:hover .message-actions, .message:focus-within .message-actions { opacity: 1; }
+@media (hover: none) { .message-actions { opacity: 1; } }
+.action-btn {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .78rem;
+}
+.action-btn:hover { color: var(--text); border-color: var(--border); }
+.action-btn:focus-visible { opacity: 1; }

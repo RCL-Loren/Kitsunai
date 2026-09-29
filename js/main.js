@@ -1,9 +1,11 @@
 // KitsunAI entry point. Classic vendor scripts (markdownit, hljs, katex) run before this module.
 
 import { openDB } from './db.js';
-import { loadSettings } from './data/settings.js';
+import { loadSettings, getSettings } from './data/settings.js';
+import { on } from './events.js';
 import { renderSidebar, setActiveNav } from './ui/sidebar.js';
-import { renderHome, renderPlaceholder, renderFatal } from './ui/home.js';
+import { renderHome, renderFatal } from './ui/home.js';
+import { renderSettings } from './ui/settings-screen.js';
 import { renderModelsList, renderModelForm } from './ui/models-screen.js';
 import { renderNewChat } from './ui/new-chat.js';
 import { renderConversation } from './ui/conversation-view.js';
@@ -15,10 +17,15 @@ const prefersLight = matchMedia('(prefers-color-scheme: light)');
 const sidebar = document.querySelector('.sidebar');
 const main = document.querySelector('#main');
 
-function applySystemTheme() {
-  root.dataset.theme = prefersLight.matches ? 'light' : 'dark';
+// Theme: the setting, or the OS preference when set to "system". Mirrored to
+// localStorage so the inline script in index.html can apply it before first paint.
+function applyTheme() {
+  const setting = getSettings().theme;
+  root.dataset.theme = setting === 'system' ? (prefersLight.matches ? 'light' : 'dark') : setting;
+  try { localStorage.setItem('kitsunai-theme', setting); } catch { /* storage unavailable */ }
 }
-prefersLight.addEventListener('change', applySystemTheme);
+prefersLight.addEventListener('change', applyTheme);
+on('settings:changed', ({ key }) => { if (key === 'theme') applyTheme(); });
 
 // Routes: [pattern, nav section, render(main, params, query) → cleanup?]
 const ROUTES = [
@@ -29,7 +36,7 @@ const ROUTES = [
   [/^\/new$/, 'new', (el) => renderNewChat(el)],
   [/^\/new\/([\w-]+)$/, null, (el, [modelId]) => renderConversation(el, { modelId })],
   [/^\/chat\/([\w-]+)$/, null, (el, [id]) => renderConversation(el, { id })],
-  [/^\/settings$/, 'settings', (el) => renderPlaceholder(el, 'Settings', 'Settings arrive in milestone 5.')],
+  [/^\/settings$/, 'settings', (el) => renderSettings(el)],
 ];
 
 let cleanup = null;
@@ -66,6 +73,7 @@ async function boot() {
   try {
     await openDB();
     await loadSettings();
+    applyTheme();
     renderSidebar(sidebar);
   } catch (err) {
     renderFatal(main, `${err.message} KitsunAI stores conversations in IndexedDB, which may be disabled in private browsing.`);

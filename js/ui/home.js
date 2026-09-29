@@ -32,14 +32,6 @@ export function renderSetupComplete(main, model) {
     </section>`;
 }
 
-export function renderPlaceholder(main, title, note) {
-  main.innerHTML = html`
-    <section class="empty-state screen-enter">
-      <h2 class="display">${title}</h2>
-      <p>${note}</p>
-    </section>`;
-}
-
 export function renderFatal(main, message) {
   main.innerHTML = html`
     <section class="empty-state">
