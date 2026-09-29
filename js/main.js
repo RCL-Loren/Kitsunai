@@ -8,6 +8,7 @@ import { renderModelsList, renderModelForm } from './ui/models-screen.js';
 import { renderNewChat } from './ui/new-chat.js';
 import { renderConversation } from './ui/conversation-view.js';
 import { attachCodeCopy } from './render/code-blocks.js';
+import { startProfile, stopProfile } from './dev/perf.js';
 
 const root = document.documentElement;
 const prefersLight = matchMedia('(prefers-color-scheme: light)');
@@ -73,5 +74,14 @@ async function boot() {
   window.addEventListener('hashchange', route);
   route();
 }
+
+// Developer hooks for performance work (see DevDocs/perf-notes.md).
+window.kitsunai = {
+  debug: {
+    seed: async (n = 500) => (await import('./dev/seed.js')).seed(n),
+    startProfile,
+    stopProfile,
+  },
+};
 
 boot();

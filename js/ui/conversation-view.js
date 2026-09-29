@@ -1,6 +1,6 @@
 import { html, $ } from './dom.js';
 import { mascot } from './mascot.js';
-import { messageElement, thoughts } from './message-view.js';
+import { messageElement, thoughts, statusLine, cacheHtml } from './message-view.js';
 import { createComposer } from './composer.js';
 import { emit, on } from '../events.js';
 import { getConversation } from '../data/conversations.js';
@@ -8,9 +8,11 @@ import { listMessages } from '../data/messages.js';
 import { getModel } from '../data/models.js';
 import { presetFor } from '../providers/index.js';
 import { createChatSession } from '../chat/session.js';
-import { renderMarkdown } from '../render/markdown.js';
+import { createStreamRenderer } from '../render/stream-renderer.js';
+import { recordPaint } from '../dev/perf.js';
 
-const STICK_THRESHOLD = 80; // px from the bottom that still counts as "following"
+const PAGE_SIZE = 30; // messages rendered per history page
+const FOLLOW_THRESHOLD = 40; // px from the bottom that still counts as "following"
 
 // #/chat/:id (existing) or #/new/:modelId (draft, persisted on first send).
 export async function renderConversation(main, { id, modelId }) {
@@ -38,18 +40,68 @@ export async function renderConversation(main, { id, modelId }) {
         <span class="model-chip" title="${model ? `${presetFor(model.preset).label} · ${model.model}` : 'Model removed'}">✦ ${modelName}</span>
       </header>
       <div class="chat-log"></div>
-      <div class="composer-dock"></div>
+      <div class="composer-dock">
+        <button type="button" class="latest-pill" hidden>↓ Latest</button>
+      </div>
     </section>`;
 
   const log = $('.chat-log', main);
   const title = $('.chat-title', main);
-  const nearBottom = () => main.scrollHeight - main.scrollTop - main.clientHeight < STICK_THRESHOLD;
-  const scrollToBottom = () => { main.scrollTop = main.scrollHeight; };
+  const pill = $('.latest-pill', main);
+
+  // ── Following the bottom ────────────────────────────────────────────────
+  // Only user scrolling changes `following`; content growth never does.
+  let following = true;
+  const distanceFromBottom = () => main.scrollHeight - main.scrollTop - main.clientHeight;
+  const scrollToBottom = () => {
+    following = true;
+    pill.hidden = true;
+    main.scrollTop = main.scrollHeight;
+  };
+  const onScroll = () => {
+    following = distanceFromBottom() < FOLLOW_THRESHOLD;
+    if (following) pill.hidden = true;
+  };
+  main.addEventListener('scroll', onScroll, { passive: true });
+  pill.addEventListener('click', scrollToBottom);
+
+  // ── History, rendered lazily from the end ───────────────────────────────
+  let oldestRendered = messages.length;
+  let sentinel = null;
+  let observer = null;
+
+  function renderOlderPage() {
+    const start = Math.max(0, oldestRendered - PAGE_SIZE);
+    const fragment = document.createDocumentFragment();
+    for (const m of messages.slice(start, oldestRendered)) fragment.append(messageElement(m));
+    // Native scroll anchoring keeps the reader's place, including when
+    // content-visibility swaps size estimates for real sizes above the viewport.
+    sentinel.after(fragment);
+    oldestRendered = start;
+    if (oldestRendered === 0) {
+      observer.disconnect();
+      sentinel.remove();
+    } else {
+      // Re-observe so a still-visible sentinel fires again (short messages).
+      observer.unobserve(sentinel);
+      observer.observe(sentinel);
+    }
+  }
 
   if (messages.length) {
     const fragment = document.createDocumentFragment();
-    for (const m of messages) fragment.append(messageElement(m));
+    oldestRendered = Math.max(0, messages.length - PAGE_SIZE);
+    for (const m of messages.slice(oldestRendered)) fragment.append(messageElement(m));
     log.append(fragment);
+    if (oldestRendered > 0) {
+      sentinel = document.createElement('div');
+      sentinel.className = 'history-sentinel';
+      sentinel.setAttribute('aria-hidden', 'true');
+      log.prepend(sentinel);
+      observer = new IntersectionObserver((entries) => {
+        if (entries.some((e) => e.isIntersecting)) renderOlderPage();
+      }, { root: main, rootMargin: '1200px 0px 0px 0px' });
+    }
   } else {
     log.innerHTML = html`
       <div class="chat-empty">
@@ -58,27 +110,31 @@ export async function renderConversation(main, { id, modelId }) {
       </div>`;
   }
 
-  // ── Streaming state (naive: re-render the whole reply once per frame) ──
-  let pending = null; // { el, body, thoughtsEl, text, reasoning }
+  // ── Streaming ───────────────────────────────────────────────────────────
+  let pending = null; // { el, renderer, thoughtsEl, text, reasoning }
   let frame = 0;
   let errorCard = null;
 
+  // One frame: flush the renderer, update thoughts, then follow the bottom.
   function paint() {
     frame = 0;
     if (!pending) return;
-    const follow = nearBottom();
+    const t0 = performance.now();
     if (pending.text) {
       pending.el.classList.remove('thinking');
-      pending.body.innerHTML = renderMarkdown(pending.text, { highlight: false });
+      pending.renderer.update(pending.text);
+      pending.renderer.flush();
     }
     if (pending.reasoning) {
       if (!pending.thoughtsEl) {
         pending.el.insertAdjacentHTML('afterbegin', String(thoughts()));
         pending.thoughtsEl = $('.thoughts-body', pending.el);
       }
-      pending.thoughtsEl.textContent = pending.reasoning;
+      if (pending.thoughtsEl.textContent.length !== pending.reasoning.length) pending.thoughtsEl.textContent = pending.reasoning;
     }
-    if (follow) scrollToBottom();
+    if (following) main.scrollTop = main.scrollHeight;
+    else pill.hidden = false;
+    recordPaint(performance.now() - t0);
   }
 
   function showError(error) {
@@ -127,7 +183,7 @@ export async function renderConversation(main, { id, modelId }) {
           <div class="stream-indicator" aria-hidden="true">${mascot('thinking', { size: 40 })}</div>
           <span class="visually-hidden" role="status">${modelName} is responding…</span>`;
         log.append(el);
-        pending = { el, body: $('.message-body', el), thoughtsEl: null, text: '', reasoning: '' };
+        pending = { el, renderer: createStreamRenderer($('.message-body', el)), thoughtsEl: null, text: '', reasoning: '' };
         composer.setStreaming(true);
         scrollToBottom();
       },
@@ -140,15 +196,26 @@ export async function renderConversation(main, { id, modelId }) {
       onStreamEnd({ message, error }) {
         cancelAnimationFrame(frame);
         frame = 0;
-        const follow = nearBottom();
         if (pending) {
-          if (message) pending.el.replaceWith(messageElement(message));
-          else pending.el.remove();
+          const { el, renderer } = pending;
+          if (message) {
+            cacheHtml(message.id, renderer.finish(message.markdown));
+            el.classList.remove('streaming', 'thinking');
+            el.dataset.id = message.id;
+            $('.stream-indicator', el)?.remove();
+            $('[role="status"]', el)?.remove();
+            const reasoning = message.metadata.reasoning;
+            if (reasoning && !$('.thoughts', el)) el.insertAdjacentHTML('afterbegin', String(thoughts(reasoning)));
+            else if (reasoning) $('.thoughts-body', el).textContent = reasoning;
+            el.insertAdjacentHTML('beforeend', String(statusLine(message.metadata.status)));
+          } else {
+            el.remove();
+          }
           pending = null;
         }
         composer.setStreaming(false);
         if (error) showError(error);
-        if (follow) scrollToBottom();
+        if (following) main.scrollTop = main.scrollHeight;
         composer.focus();
       },
     },
@@ -176,10 +243,14 @@ export async function renderConversation(main, { id, modelId }) {
   });
 
   scrollToBottom();
+  // Start observing only after the initial jump, so it doesn't load a page immediately.
+  if (sentinel) requestAnimationFrame(() => observer.observe(sentinel));
   composer.focus();
 
   return () => {
     document.removeEventListener('keydown', onKey);
+    main.removeEventListener('scroll', onScroll);
+    observer?.disconnect();
     offRename();
     cancelAnimationFrame(frame);
     session.stop(); // leaving mid-stream keeps the partial reply as "stopped"

@@ -159,7 +159,16 @@
   animation: flicker 1s ease-in-out infinite;
 }
 /* Keep the flame inline with the last paragraph rather than on its own line. */
-.message.streaming .message-body > p:last-child { display: inline; }
+.message.streaming .live > p:last-child { display: inline; }
+
+/* Streaming wrappers don't affect layout; margins behave as in a finished message. */
+.md > .frozen, .md > .live { display: contents; }
+.md > .frozen > :first-child, .md > .frozen:empty + .live > :first-child { margin-top: 0; }
+.md > .live > :last-child { margin-bottom: 0; }
+
+/* Off-screen finished messages skip layout and paint entirely. */
+.message:not(.streaming) { content-visibility: auto; contain-intrinsic-size: auto 240px; }
+.history-sentinel { height: 1px; }
 
 .error-card {
   display: flex;
@@ -177,6 +186,23 @@
 .error-card pre { white-space: pre-wrap; font-family: var(--font-mono); font-size: .8rem; max-height: 10rem; overflow: auto; }
 
 /* ── Composer ────────────────────────────────────────────────────────────── */
+
+.latest-pill {
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border: 1px solid var(--border-lit);
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--foxfire);
+  font-size: .85rem;
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgb(0 0 0 / .18);
+  animation: rise-in var(--dur) var(--ease) both;
+}
+.latest-pill:hover { box-shadow: var(--glow); }
 
 .composer-dock {
   position: sticky;
