@@ -176,7 +176,13 @@
 
 /* Streaming wrappers don't affect layout; margins behave as in a finished message. */
 .md > .frozen, .md > .live { display: contents; }
-.md > .frozen > :first-child, .md > .frozen:empty + .live > :first-child { margin-top: 0; }
+.md > .frozen > .frozen-chunk:first-child > :first-child, .md > .frozen-chunk:first-child > :first-child,
+.md > .frozen:empty + .live > :first-child { margin-top: 0; }
+.md > .frozen-chunk:last-child { margin-bottom: 0; }
+/* content-visibility implies layout containment, so margins can't collapse
+   across chunks; normalise the gap between chunks to one paragraph gap. */
+.md .frozen-chunk { content-visibility: auto; contain-intrinsic-size: auto 800px; margin-bottom: 1em; }
+.md .frozen-chunk > :last-child { margin-bottom: 0; }
 .md > .live > :last-child { margin-bottom: 0; }
 
 /* Off-screen finished messages skip layout and paint entirely. */

@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { createMarkdownRenderer } from '../js/render/markdown.js';
+import { createMarkdownRenderer, HIGHLIGHT_LIMIT } from '../js/render/markdown.js';
 
 const require = createRequire(import.meta.url);
 const render = createMarkdownRenderer({
@@ -12,7 +12,7 @@ const render = createMarkdownRenderer({
 
 test('fenced code gets a header, copy button, and highlighting', () => {
   const html = render('```python\nprint("hi")\n```');
-  assert.match(html, /<div class="code-block"><div class="code-header"><span class="code-lang">python<\/span><button type="button" class="code-copy" data-copy-code>Copy<\/button><\/div>/);
+  assert.match(html, /<div class="code-block"><div class="code-header"><span class="code-lang">python<\/span><button type="button" class="code-copy" data-copy-code aria-label="Copy code">Copy<\/button><\/div>/);
   assert.match(html, /<code class="hljs language-python"><span class="hljs-built_in">print<\/span>/);
 });
 
@@ -68,4 +68,22 @@ test('tables are wrapped for horizontal scrolling', () => {
   assert.match(html, /^<div class="table-wrap"><table>/);
   assert.match(html, /<\/table><\/div>\n$/);
   assert.match(html, /<td><span class="math-inline">/);
+});
+
+test('very large code blocks skip highlighting', () => {
+  const big = 'x = 1\n'.repeat(Math.ceil(HIGHLIGHT_LIMIT / 6) + 10);
+  const html = render('```python\n' + big + '```');
+  assert.match(html, /not highlighted \(large\)/);
+  assert.doesNotMatch(html, /hljs-number/);
+  assert.match(render('```python\nx = 1\n```'), /hljs-number/);
+});
+
+test('chunked rendering wraps groups of top-level blocks and is otherwise identical', () => {
+  const doc = Array.from({ length: 60 }, (_, i) => i % 5 === 0 ? `## Heading ${i}` : i % 7 === 0 ? '```js\nx\n```' : `Paragraph ${i} with $x_{${i}}$.`).join('\n\n') + '\n\n- a\n- b\n';
+  const plain = render(doc);
+  const chunked = render(doc, { chunk: 24 });
+  assert.equal((chunked.match(/<div class="frozen-chunk">/g) ?? []).length, 3);
+  const unwrapped = chunked.replace(/<\/div><div class="frozen-chunk">/g, '').replace(/^<div class="frozen-chunk">/, '').replace(/<\/div>$/, '');
+  assert.equal(unwrapped, plain);
+  assert.equal(render('Short.\n\nMessage.', { chunk: 24 }), render('Short.\n\nMessage.'), 'short messages are not wrapped');
 });

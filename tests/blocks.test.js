@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { findStableBoundary } from '../js/render/blocks.js';
+import { findStableBoundary, scanBlocks } from '../js/render/blocks.js';
 import { createMarkdownRenderer } from '../js/render/markdown.js';
 
 const b = findStableBoundary;
@@ -70,4 +70,15 @@ test('frozen chunks + tail render the same as the whole document', () => {
     }
   }
   assert.equal(frozenHtml + render(doc.slice(frozenUpTo)), render(doc));
+});
+
+test('reports a fence that is still open at the end', () => {
+  const text = 'Intro.\n\n```python\ndef f():\n    return 1\n';
+  const { boundary, openFence } = scanBlocks(text);
+  assert.equal(boundary, 'Intro.\n\n'.length);
+  assert.deepEqual(openFence, { start: boundary, contentStart: boundary + '```python\n'.length, lang: 'python', indented: false });
+  assert.equal(scanBlocks('```js\nx\n```\n').openFence, null, 'closed fence');
+  assert.equal(scanBlocks('```js').openFence, null, 'opener line not complete yet');
+  assert.equal(scanBlocks('- item\n\n  ```\n  code\n').openFence.indented, true);
+  assert.equal(scanBlocks('~~~\nx\n').openFence.lang, '');
 });

@@ -42,6 +42,17 @@ export { UPSTREAM_HEADER };
 // plain static server that knows nothing about /relay.
 const RELAY_HEADERS = { [RELAY_MARKER]: '1' };
 
+// Plain-language explanations for common network failures.
+const NETWORK_ERRORS = {
+  ECONNREFUSED: 'connection refused — is the server running?',
+  ENOTFOUND: 'host not found — check the endpoint address',
+  EAI_AGAIN: 'DNS lookup failed — check your connection',
+  ETIMEDOUT: 'the connection timed out',
+  ECONNRESET: 'the connection was reset',
+  UND_ERR_CONNECT_TIMEOUT: 'the connection timed out',
+  'bad port': 'that port is blocked for safety by Node’s fetch',
+};
+
 function sendJSON(res, status, message, extra = {}) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...extra });
   res.end(JSON.stringify({ error: { message } }));
@@ -101,7 +112,8 @@ async function relay(req, res, port) {
     });
   } catch (err) {
     if (controller.signal.aborted) return;
-    const cause = err.cause?.code ?? err.cause?.message ?? err.message;
+    const code = err.cause?.code ?? err.cause?.message ?? err.message;
+    const cause = NETWORK_ERRORS[code] ?? code;
     console.warn(`relay  ✕ ${new URL(upstream).host}: ${cause}`);
     return sendJSON(res, 502, `Relay could not reach ${new URL(upstream).host}: ${cause}`, { ...RELAY_HEADERS, 'x-kitsunai-relay-error': '1' });
   }

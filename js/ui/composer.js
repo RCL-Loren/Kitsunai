@@ -64,6 +64,13 @@ export function createComposer({ placeholder, onSend, onStop }) {
       button.classList.toggle('composer-stop', value);
       button.setAttribute('aria-label', value ? 'Stop generating' : 'Send message');
     },
+    // Puts an unsent draft back (e.g. saving failed) unless the user typed something new.
+    restore(text) {
+      if (textarea.value.trim()) return;
+      textarea.value = text;
+      autosize();
+      textarea.focus();
+    },
     disable(reason) {
       textarea.disabled = true;
       button.disabled = true;

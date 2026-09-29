@@ -1,5 +1,7 @@
 // One delegated listener per root handles every code block's Copy button.
 
+import { announce } from '../ui/announce.js';
+
 export function attachCodeCopy(root) {
   const onClick = async (e) => {
     const button = e.target.closest('[data-copy-code]');
@@ -9,6 +11,7 @@ export function attachCodeCopy(root) {
     try {
       await navigator.clipboard.writeText(code.textContent);
       flash(button, 'Copied');
+      announce('Code copied');
     } catch {
       flash(button, 'Copy failed');
     }

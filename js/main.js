@@ -71,6 +71,12 @@ async function boot() {
   if (missing.length) console.error(`[KitsunAI] Missing vendored libraries: ${missing.join(', ')}. Run scripts/vendor.sh.`);
 
   attachCodeCopy(main);
+  // Skip link: jump past the sidebar to the screen's main control (a button,
+  // because an href="#main" would be read as a route).
+  main.tabIndex = -1;
+  document.querySelector('.skip-link').addEventListener('click', () => {
+    (main.querySelector('textarea:not(:disabled), input, a.btn-primary, .companion') ?? main).focus();
+  });
   try {
     await openDB();
     await loadSettings();

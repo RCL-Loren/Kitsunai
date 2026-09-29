@@ -1,12 +1,14 @@
 import { html, $ } from './dom.js';
 import { mascot } from './mascot.js';
-import { messageElement, messageActions, thoughts, statusLine, cacheHtml } from './message-view.js';
+import { messageElement, messageActions, thoughts, statusLine } from './message-view.js';
 import { toast } from './toast.js';
+import { announce } from './announce.js';
 import { createComposer } from './composer.js';
 import { emit, on } from '../events.js';
 import { getConversation } from '../data/conversations.js';
 import { listMessages } from '../data/messages.js';
 import { getModel } from '../data/models.js';
+import { getSettings } from '../data/settings.js';
 import { presetFor } from '../providers/index.js';
 import { createChatSession } from '../chat/session.js';
 import { createStreamRenderer } from '../render/stream-renderer.js';
@@ -42,7 +44,7 @@ export async function renderConversation(main, { id, modelId }) {
         <span class="model-chip" title="${model ? `${presetFor(model.preset).label} · ${model.model}` : 'Model removed'}">✦ ${modelName}</span>
         <button type="button" class="btn btn-ghost btn-sm" data-action="export-conversation" ${conversation ? '' : 'disabled'}>Export</button>
       </header>
-      <div class="chat-log"></div>
+      <div class="chat-log" role="region" aria-label="Conversation"></div>
       <div class="composer-dock">
         <button type="button" class="latest-pill" hidden>↓ Latest</button>
       </div>
@@ -53,6 +55,8 @@ export async function renderConversation(main, { id, modelId }) {
   const pill = $('.latest-pill', main);
   const exportButton = $('[data-action="export-conversation"]', main);
   const byId = new Map(messages.map((m) => [m.id, m]));
+  const labelFor = (m) => (m.role === 'user' ? getSettings().displayName : modelName);
+  const render = (m) => messageElement(m, { label: labelFor(m) });
 
   // ── Copy / export ───────────────────────────────────────────────────────
   function flash(button, label) {
@@ -70,8 +74,8 @@ export async function renderConversation(main, { id, modelId }) {
     if (!message) return;
     try {
       const action = button.dataset.msgAction;
-      if (action === 'copy') { await copyRendered($('.message-body', el)); flash(button, 'Copied'); }
-      if (action === 'copy-markdown') { await copyMarkdown(message); flash(button, 'Copied'); }
+      if (action === 'copy') { await copyRendered($('.message-body', el)); flash(button, 'Copied'); announce('Message copied'); }
+      if (action === 'copy-markdown') { await copyMarkdown(message); flash(button, 'Copied'); announce('Markdown copied'); }
       if (action === 'export') exportMessage(message);
     } catch (err) {
       toast(`Couldn’t copy: ${err.message}`, { kind: 'error' });
@@ -110,7 +114,7 @@ export async function renderConversation(main, { id, modelId }) {
   function renderOlderPage() {
     const start = Math.max(0, oldestRendered - PAGE_SIZE);
     const fragment = document.createDocumentFragment();
-    for (const m of messages.slice(start, oldestRendered)) fragment.append(messageElement(m));
+    for (const m of messages.slice(start, oldestRendered)) fragment.append(render(m));
     // Native scroll anchoring keeps the reader's place, including when
     // content-visibility swaps size estimates for real sizes above the viewport.
     sentinel.after(fragment);
@@ -128,7 +132,7 @@ export async function renderConversation(main, { id, modelId }) {
   if (messages.length) {
     const fragment = document.createDocumentFragment();
     oldestRendered = Math.max(0, messages.length - PAGE_SIZE);
-    for (const m of messages.slice(oldestRendered)) fragment.append(messageElement(m));
+    for (const m of messages.slice(oldestRendered)) fragment.append(render(m));
     log.append(fragment);
     if (oldestRendered > 0) {
       sentinel = document.createElement('div');
@@ -209,7 +213,7 @@ export async function renderConversation(main, { id, modelId }) {
       onUserMessage(message) {
         $('.chat-empty', log)?.remove();
         byId.set(message.id, message);
-        const el = messageElement(message);
+        const el = render(message);
         el.classList.add('message-enter');
         log.append(el);
         scrollToBottom();
@@ -221,8 +225,9 @@ export async function renderConversation(main, { id, modelId }) {
         el.className = 'message message-assistant streaming thinking message-enter';
         el.innerHTML = html`
           <div class="message-body md"></div>
-          <div class="stream-indicator" aria-hidden="true">${mascot('thinking', { size: 40 })}</div>
-          <span class="visually-hidden" role="status">${modelName} is responding…</span>`;
+          <div class="stream-indicator" aria-hidden="true">${mascot('thinking', { size: 40 })}</div>`;
+        el.setAttribute('aria-busy', 'true');
+        el.setAttribute('aria-label', `${modelName}, responding`);
         log.append(el);
         pending = { el, renderer: createStreamRenderer($('.message-body', el)), thoughtsEl: null, text: '', reasoning: '' };
         composer.setStreaming(true);
@@ -234,21 +239,28 @@ export async function renderConversation(main, { id, modelId }) {
         pending.reasoning = reasoning;
         frame ||= requestAnimationFrame(paint);
       },
-      onStreamEnd({ message, error }) {
+      onStreamEnd({ message, error, aborted, text }) {
         cancelAnimationFrame(frame);
         frame = 0;
         if (pending) {
           const { el, renderer } = pending;
-          if (message) {
-            cacheHtml(message.id, renderer.finish(message.markdown));
+          el.removeAttribute('aria-busy');
+          el.setAttribute('aria-label', modelName);
+          if (!message && text?.trim() && error) {
+            // Streamed but not saved: keep it on screen so nothing is lost.
+            renderer.finish(text);
+            el.classList.remove('streaming', 'thinking');
+            $('.stream-indicator', el)?.remove();
+            el.insertAdjacentHTML('beforeend', html`<p class="message-status">Not saved</p>`.toString());
+          } else if (message) {
+            renderer.finish(message.markdown);
             el.classList.remove('streaming', 'thinking');
             el.dataset.id = message.id;
             $('.stream-indicator', el)?.remove();
-            $('[role="status"]', el)?.remove();
             const reasoning = message.metadata.reasoning;
             if (reasoning && !$('.thoughts', el)) el.insertAdjacentHTML('afterbegin', String(thoughts(reasoning)));
             else if (reasoning) $('.thoughts-body', el).textContent = reasoning;
-            el.insertAdjacentHTML('beforeend', String(statusLine(message.metadata.status)) + messageActions());
+            el.insertAdjacentHTML('beforeend', String(statusLine(message.metadata.status, message.metadata.finishReason)) + messageActions());
             byId.set(message.id, message);
           } else {
             el.remove();
@@ -257,6 +269,7 @@ export async function renderConversation(main, { id, modelId }) {
         }
         composer.setStreaming(false);
         if (error) showError(error);
+        announce(error ? `${modelName} couldn’t answer.` : aborted ? 'Response stopped.' : 'Response complete.');
         if (following) main.scrollTop = main.scrollHeight;
         composer.focus();
       },
@@ -265,14 +278,17 @@ export async function renderConversation(main, { id, modelId }) {
 
   const composer = createComposer({
     placeholder: `Message ${modelName}…`,
-    onSend: (text) => session.send(text),
+    onSend: (text) => session.send(text).catch((err) => {
+      composer.restore(text);
+      toast(`Couldn’t send: ${err.message}`, { kind: 'error', duration: 6000 });
+    }),
     onStop: () => session.stop(),
   });
   $('.composer-dock', main).append(composer.el);
   if (!model) composer.disable('This conversation’s model was removed. It stays readable, but can’t continue.');
 
   const onKey = (e) => {
-    if (e.key === 'Escape' && session.streaming) { e.preventDefault(); session.stop(); }
+    if (e.key === 'Escape' && !e.defaultPrevented && session.streaming) { e.preventDefault(); session.stop(); }
   };
   document.addEventListener('keydown', onKey);
 
@@ -284,12 +300,35 @@ export async function renderConversation(main, { id, modelId }) {
     if (fresh) title.textContent = fresh.title;
   });
 
+  // Land at the bottom. Off-screen chunks start at estimated heights and
+  // settle to real ones as they render, so keep snapping to the bottom until the
+  // height is stable (or the reader takes over with their own scrolling).
+  let settling = true;
+  let disposed = false;
+  const stopSettling = () => { settling = false; };
+  const startPaging = () => { if (sentinel && !disposed) observer.observe(sentinel); };
+  const SETTLE_STOPPERS = ['wheel', 'touchstart', 'keydown', 'pointerdown'];
+  for (const type of SETTLE_STOPPERS) main.addEventListener(type, stopSettling, { once: true, passive: true });
   scrollToBottom();
-  // Start observing only after the initial jump, so it doesn't load a page immediately.
-  if (sentinel) requestAnimationFrame(() => observer.observe(sentinel));
-  composer.focus();
+  (function settle(framesLeft, lastHeight, stableFrames) {
+    requestAnimationFrame(() => {
+      if (disposed) return;
+      if (!settling) { startPaging(); return; }
+      const height = main.scrollHeight;
+      scrollToBottom();
+      const stable = height === lastHeight ? stableFrames + 1 : 0;
+      if (framesLeft > 0 && stable < 3) settle(framesLeft - 1, height, stable);
+      else {
+        settling = false;
+        startPaging(); // only once settled, so it doesn't load a page immediately
+      }
+    });
+  })(30, -1, 0);
+  composer.focus({ preventScroll: true });
 
   return () => {
+    disposed = true;
+    for (const type of SETTLE_STOPPERS) main.removeEventListener(type, stopSettling);
     document.removeEventListener('keydown', onKey);
     main.removeEventListener('scroll', onScroll);
     observer?.disconnect();

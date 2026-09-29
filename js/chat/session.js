@@ -1,9 +1,10 @@
 // Chat session: send / stream / stop / retry / persist for one conversation.
 // No DOM here; the view subscribes through handlers.
 
-import { createConversation, updateConversation } from '../data/conversations.js';
+import { createConversation, updateConversation, getConversation } from '../data/conversations.js';
 import { addMessage } from '../data/messages.js';
 import { adapterFor } from '../providers/index.js';
+import { ProviderError } from '../providers/errors.js';
 
 const TITLE_MAX = 60;
 
@@ -34,8 +35,10 @@ export function createChatSession({ conversation = null, model, messages = [], h
   let conv = conversation;
   const history = [...messages];
   let controller = null;
+  let busy = false; // covers the whole send, including the saves before streaming starts
 
-  const touch = () => updateConversation(conv.id, { updatedAt: Date.now() });
+  // Bumping updatedAt is bookkeeping; a failure here must not break the chat.
+  const touch = () => updateConversation(conv.id, { updatedAt: Date.now() }).catch(() => {});
 
   async function streamReply() {
     controller = new AbortController();
@@ -62,40 +65,69 @@ export function createChatSession({ conversation = null, model, messages = [], h
     }
     controller = null;
 
+    if (!aborted && !error && !text.trim()) {
+      error = new ProviderError(
+        reasoning
+          ? 'The model only produced reasoning and no answer — it may have hit its token limit. Try raising Max tokens.'
+          : 'The model returned an empty response.',
+        { kind: 'protocol' },
+      );
+    }
+
     let message = null;
     if (text.trim()) {
       const metadata = { status: aborted || error ? 'stopped' : 'complete' };
       if (reasoning) metadata.reasoning = reasoning;
       if (usage) metadata.usage = usage;
       if (finishReason) metadata.finishReason = finishReason;
-      message = await addMessage({ conversationId: conv.id, role: 'assistant', markdown: text, metadata });
-      history.push(message);
-      await touch();
+      try {
+        // The conversation may have been deleted while the reply streamed.
+        if (await getConversation(conv.id)) {
+          message = await addMessage({ conversationId: conv.id, role: 'assistant', markdown: text, metadata });
+          history.push(message);
+          await touch();
+        }
+      } catch (err) {
+        error = new Error(`The reply couldn’t be saved: ${err.message}`);
+      }
     }
-    handlers.onStreamEnd?.({ message, error, aborted });
+    handlers.onStreamEnd?.({ message, error, aborted, text });
   }
 
   return {
     get conversation() { return conv; },
-    get streaming() { return controller !== null; },
+    get streaming() { return busy; },
 
+    // Throws only if the user's message couldn't be saved (the caller restores
+    // the draft so nothing typed is lost); stream problems go to onStreamEnd.
     async send(markdown) {
-      if (controller || !markdown.trim()) return;
-      if (!conv) {
-        conv = await createConversation({ title: deriveTitle(markdown), modelId: model.id, modelName: model.name });
-        handlers.onConversationCreated?.(conv);
+      if (busy || !markdown.trim()) return false;
+      busy = true;
+      try {
+        if (!conv) {
+          conv = await createConversation({ title: deriveTitle(markdown), modelId: model.id, modelName: model.name });
+          handlers.onConversationCreated?.(conv);
+        }
+        const userMessage = await addMessage({ conversationId: conv.id, role: 'user', markdown });
+        history.push(userMessage);
+        await touch();
+        handlers.onUserMessage?.(userMessage);
+        await streamReply();
+        return true;
+      } finally {
+        busy = false;
       }
-      const userMessage = await addMessage({ conversationId: conv.id, role: 'user', markdown });
-      history.push(userMessage);
-      await touch();
-      handlers.onUserMessage?.(userMessage);
-      await streamReply();
     },
 
     // Re-streams a reply to the last user message (after an error).
     async retry() {
-      if (controller || !conv) return;
-      await streamReply();
+      if (busy || !conv) return;
+      busy = true;
+      try {
+        await streamReply();
+      } finally {
+        busy = false;
+      }
     },
 
     stop() {

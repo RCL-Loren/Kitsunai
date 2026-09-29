@@ -4,14 +4,18 @@
 // profiled without API keys.
 //
 //   node tools/mock-server.js [--port 8090] [--tps 60] [--latency 400]
-//                             [--fail http|mid] [--reasoning] [--repeat 1]
+//                             [--fail http|mid|<status>] [--reasoning] [--repeat 1]
+//                             [--empty] [--code-lines N]
 //
-// --tps        tokens per second (a "token" here is ~4 characters)
-// --latency    ms before the first token
-// --fail http  every completion returns HTTP 500
-// --fail mid   every completion drops the connection halfway through
-// --reasoning  emit delta.reasoning_content before the answer
-// --repeat     repeat the canned response N times (for long-message tests)
+// --tps         tokens per second (a "token" here is ~4 characters)
+// --latency     ms before the first token
+// --fail http   every completion returns HTTP 500
+// --fail 429    every completion returns that HTTP status (401, 429, 503, …)
+// --fail mid    every completion drops the connection halfway through
+// --reasoning   emit delta.reasoning_content before the answer
+// --repeat      repeat the canned response N times (for long-message tests)
+// --empty       stream a response with no content
+// --code-lines  answer with one fenced code block of N lines (large-block tests)
 
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
@@ -72,14 +76,19 @@ That's the whole story for the non-relativistic case.
 `,
 ];
 
+export function codeBlock(lines) {
+  const body = Array.from({ length: lines }, (_, i) => `    total += step(${i}, rate=${(i % 7) / 10}, label="line ${i}")  # accumulate`).join('\n');
+  return `Here is the generated module:\n\n\`\`\`python\ndef run(step):\n    total = 0\n${body}\n    return total\n\`\`\`\n\nThat's all ${lines} lines.\n`;
+}
+
 const REASONING =
   'Let me recall the standard second-order form, then check the pole locations and the regime table before answering.';
 
 function parseArgs(argv) {
-  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1 };
+  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1, empty: false, 'code-lines': 0 };
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, '');
-    if (key === 'reasoning') opts.reasoning = true;
+    if (key === 'reasoning' || key === 'empty') opts[key] = true;
     else if (key in opts) opts[key] = isNaN(+argv[i + 1]) ? argv[++i] : +argv[++i];
   }
   return opts;
@@ -99,7 +108,7 @@ const CORS = {
 };
 
 export function createMockServer(options = {}) {
-  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1, ...options };
+  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1, empty: false, 'code-lines': 0, ...options };
   let counter = 0;
 
   return http.createServer(async (req, res) => {
@@ -125,12 +134,16 @@ export function createMockServer(options = {}) {
       return res.end(JSON.stringify({ error: { message: 'Invalid JSON body' } }));
     }
 
-    if (opts.fail === 'http') {
-      res.writeHead(500, { ...CORS, 'content-type': 'application/json' });
-      return res.end(JSON.stringify({ error: { message: 'Mock server configured to fail (--fail http)' } }));
+    const failStatus = opts.fail === 'http' ? 500 : Number(opts.fail) || 0;
+    if (failStatus) {
+      const messages = { 401: 'Invalid API key.', 429: 'Rate limit exceeded. Try again in 20s.' };
+      res.writeHead(failStatus, { ...CORS, 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ error: { message: messages[failStatus] ?? `Mock server configured to fail (${failStatus})` } }));
     }
 
-    const answer = RESPONSES[counter++ % RESPONSES.length].repeat(opts.repeat);
+    const answer = opts.empty ? ''
+      : opts['code-lines'] ? codeBlock(opts['code-lines'])
+      : RESPONSES[counter++ % RESPONSES.length].repeat(opts.repeat);
     const id = `chatcmpl-mock-${counter}`;
     const base = { id, object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model: body.model ?? 'mock-fox' };
     const send = (obj) => res.write(`data: ${JSON.stringify(obj)}\n\n`);

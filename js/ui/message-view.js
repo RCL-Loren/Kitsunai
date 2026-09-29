@@ -1,5 +1,6 @@
 import { html, raw } from './dom.js';
 import { renderMarkdown } from '../render/markdown.js';
+import { FROZEN_CHUNK_BLOCKS } from '../render/stream-renderer.js';
 
 // Rendered HTML per message id. Completed messages are immutable, so reopening
 // a conversation or paging history never renders the same Markdown twice.
@@ -7,7 +8,7 @@ import { renderMarkdown } from '../render/markdown.js';
 const htmlCache = new Map();
 const CACHE_LIMIT = 3000;
 
-export function cacheHtml(id, value) {
+function cacheHtml(id, value) {
   if (htmlCache.size >= CACHE_LIMIT) htmlCache.delete(htmlCache.keys().next().value);
   htmlCache.set(id, value);
 }
@@ -15,22 +16,24 @@ export function cacheHtml(id, value) {
 function messageHtml(message) {
   let value = htmlCache.get(message.id);
   if (value === undefined) {
-    value = renderMarkdown(message.markdown);
+    value = renderMarkdown(message.markdown, { chunk: FROZEN_CHUNK_BLOCKS });
     cacheHtml(message.id, value);
   }
   return value;
 }
 
 // A completed (immutable) message.
-export function messageElement(message) {
+// label: who is speaking (the user's name or the model's), announced by screen readers.
+export function messageElement(message, { label } = {}) {
   const el = document.createElement('article');
   el.className = `message message-${message.role}`;
   el.dataset.id = message.id;
-  const { reasoning, status } = message.metadata ?? {};
+  if (label) el.setAttribute('aria-label', label);
+  const { reasoning, status, finishReason } = message.metadata ?? {};
   el.innerHTML = html`
     ${reasoning ? thoughts(reasoning) : ''}
     <div class="message-body md">${raw(messageHtml(message))}</div>
-    ${statusLine(status)}
+    ${statusLine(status, finishReason)}
     ${messageActions()}`;
   return el;
 }
@@ -43,7 +46,11 @@ export const messageActions = () => html`
     <button type="button" class="action-btn" data-msg-action="export">Export Markdown</button>
   </div>`;
 
-export const statusLine = (status) => (status === 'stopped' ? html`<p class="message-status">Stopped</p>` : '');
+export function statusLine(status, finishReason) {
+  if (status === 'stopped') return html`<p class="message-status">Stopped</p>`;
+  if (finishReason === 'length') return html`<p class="message-status">Cut off at the token limit</p>`;
+  return '';
+}
 
 export function thoughts(text = '') {
   return html`<details class="thoughts"><summary>Thoughts</summary><div class="thoughts-body">${text}</div></details>`;

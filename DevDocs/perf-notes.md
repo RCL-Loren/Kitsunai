@@ -1,4 +1,4 @@
-# Performance Notes (Milestone 4, 2026-09-29)
+# Performance Notes (Milestones 4 and 7, 2026-09-29)
 
 Measured in Chrome on macOS with `tools/mock-server.js`, streaming about 200 tokens/s in ~4-character deltas. Budgets are from plan §6.
 
@@ -41,6 +41,35 @@ The old cost grows with reply length, mostly from re-laying out every KaTeX span
   kitsunai.debug.startProfile(); /* send a message, type, scroll */ kitsunai.debug.stopProfile();
   ```
   Start the mock with `node tools/mock-server.js --tps 200 --reasoning --repeat 6` for long replies.
+
+## Edge cases (Milestone 7)
+
+### A 5,000-line code block
+
+An unclosed fence stays in the live tail, so the whole block used to be re-rendered every frame.
+
+| Lines | Size | Live frame (before) | Final render (before) | Live frame (after) | Final render (after) |
+|---|---|---|---|---|---|
+| 500 | 31 KB | 3.1 ms | 50 ms | 0.1 ms | 36 ms |
+| 1,000 | 63 KB | 6.0 ms | 77 ms | 0.1 ms | 6 ms |
+| 2,500 | 161 KB | 15.7 ms | 201 ms | 0.3 ms | 15 ms |
+| 5,000 | 324 KB | 31.3 ms | 383 ms | 0.5 ms | 31 ms |
+
+Fixes:
+- **Open fences append:** new code goes into text nodes in block-level chunks of 100 lines instead of re-rendering the block. A single growing text node still cost ~6 ms of layout per append; chunks bring that to ~0.1 ms, and off-screen chunks skip layout.
+- **Code blocks over 32 KB are not highlighted.** highlight.js itself is only ~0.3 ms/KB. The real cost is parsing and laying out ~20k highlight spans, so a Worker wouldn't help.
+- **`finish()` skips the whole-document comparison render** unless the text has reference-style link definitions.
+
+End to end (mock `--code-lines 5000 --tps 3000`, 30 s): **0 long tasks**, paint work p50 1.1 ms / p95 1.7 ms, one 30 ms frame when the fence closed, and frame gaps p95 17.4 ms.
+
+### A ~200 KB reply (2,000 formulas, ~55k DOM nodes)
+
+- **Before:** 25 long tasks up to 465 ms in a fresh conversation. Long Animation Frames attribution showed forced layout inside `paint` (reading `scrollHeight` to follow the bottom) growing with the reply: the frozen part was one ever-growing block that kept being laid out.
+  - A synchronous benchmark had hidden this, since it ran without rendering between steps.
+- **Fix:** frozen blocks go into `.frozen-chunk` groups of 24 with `content-visibility: auto`. They are kept in the final DOM, because unwrapping cost a 1 s task. Messages from history over 48 blocks are chunked the same way, at the HTML-string level: moving built nodes into wrappers took ~1 s at this size.
+- **After:** frame-by-frame benchmark 6–7 ms per frame, flat from start to end (was 15–36 ms average, up to 147 ms). End to end at 5,000 tok/s: 2 mid-stream long tasks (55–64 ms), plus 121 ms for the final render and save; frame gaps p95 17.4 ms.
+- **Reopening** that conversation: 1,390 ms → **~540 ms cold, ~420 ms warm**. Most of what remains is the browser parsing ~97k nodes; lazy per-chunk rendering would be the next step if it matters. The initial jump now settles to the true bottom as chunk estimates resolve.
+- **Test setup matters:** one run had ~557k DOM nodes (several 200 KB replies in one conversation). At that point style, layout and GC costs scale with the whole page, whatever the streaming algorithm does.
 
 ## Open
 

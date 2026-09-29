@@ -109,6 +109,8 @@
   color: var(--code-text);
 }
 .md pre code { font-size: inherit; font-family: inherit; }
+/* Streaming-only chunks of a growing code block; off-screen chunks skip layout. */
+.md .code-chunk { display: block; content-visibility: auto; contain-intrinsic-size: auto 2400px; }
 
 /* Syntax colors (highlight.js classes), driven by theme tokens. */
 .hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-section, .hljs-name { color: var(--code-keyword); }

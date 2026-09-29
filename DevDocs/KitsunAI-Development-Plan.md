@@ -190,6 +190,11 @@ Some providers (OpenCode Go) send no CORS headers, so the browser cannot call th
 
 Blank lines inside indented list continuations can split a list. `finish()` repairs that, and a brief visual approximation mid-stream is acceptable.
 
+Large content (added in Milestone 7, see `perf-notes.md`):
+- Frozen blocks are grouped into `content-visibility: auto` chunks of 24, kept in the final DOM; long messages from history are chunked the same way when rendered.
+- An open top-level code fence is appended in 100-line chunks instead of being re-rendered.
+- Code blocks over 32 KB are not highlighted.
+
 History:
 - Completed messages get `content-visibility:auto; contain-intrinsic-size:auto 200px`.
 - Opening a conversation renders the **last 30** messages. An `IntersectionObserver` sentinel at the top loads older messages in pages of 30, and the scroll position is preserved using a scrollHeight delta.
