@@ -61,3 +61,12 @@ A chat with a real key is still to be checked: enter a key in `dev/spike.html` (
 ## Decision (2026-09-29)
 
 The app stays a JavaScript browser app. `tools/serve.js` replaces `python3 -m http.server`: it serves the app and relays requests for models with `useProxy` enabled (see plan §4a). V1 keeps the single OpenAI-compatible adapter. An Anthropic Messages adapter is the next candidate if the Qwen or MiniMax models are wanted.
+
+## OpenCode Go request requirements (found 2026-09-29)
+
+Without a session ID, requests fail with `400 MissingSessionID` ("Request is missing x-opencode-session and cannot be routed efficiently"). Per <https://opencode.ai/docs/go/#where-can-i-use-it>, clients should:
+- Send a stable session ID in `x-opencode-session` for each conversation, used for routing and prompt caching. KitsunAI sends the conversation ID; Test connection uses a random one.
+- Identify with their own user agent. The relay sends `KitsunAI/<version>` instead of forwarding the browser's.
+- Send "typical coding agent traffic". KitsunAI is a general chat client, so whether this use fits OpenCode Go's terms is the user's call.
+
+The session header is only sent for the OpenCode Go preset. A custom header on direct browser calls would trigger CORS preflights that other providers may reject.

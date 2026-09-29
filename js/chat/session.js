@@ -3,7 +3,7 @@
 
 import { createConversation, updateConversation, getConversation } from '../data/conversations.js';
 import { addMessage } from '../data/messages.js';
-import { adapterFor } from '../providers/index.js';
+import { adapterFor, requestHeaders } from '../providers/index.js';
 import { ProviderError } from '../providers/errors.js';
 
 const TITLE_MAX = 60;
@@ -51,7 +51,11 @@ export function createChatSession({ conversation = null, model, messages = [], h
     let aborted = false;
 
     try {
-      const events = adapterFor(model).stream(model, { messages: contextFor(history), signal: controller.signal });
+      const events = adapterFor(model).stream(model, {
+        messages: contextFor(history),
+        signal: controller.signal,
+        headers: requestHeaders(model, conv.id), // conversation ID = stable session ID
+      });
       for await (const e of events) {
         if (e.type === 'text') text += e.text;
         else if (e.type === 'reasoning') reasoning += e.text;

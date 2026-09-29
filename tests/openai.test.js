@@ -226,3 +226,12 @@ test('chunkEvents ignores empty deltas', () => {
   assert.deepEqual(chunkEvents({ choices: [{ delta: { content: '' } }] }), []);
   assert.deepEqual(chunkEvents({ choices: [] }), []);
 });
+
+test('stream and test pass provider headers through', async () => {
+  const { fetchImpl, calls } = stubFetch({
+    'POST /chat/completions': () => sseResponse(['data: [DONE]\n\n']),
+  });
+  for await (const _ of stream(model(), { messages: [], fetchImpl, headers: { 'x-opencode-session': 'conv-1' } })) { /* drain */ }
+  assert.equal(calls[0].headers.get('x-opencode-session'), 'conv-1');
+  assert.equal(calls[0].headers.get('content-type'), 'application/json');
+});

@@ -1,6 +1,6 @@
 {
   "name": "kitsunai",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "A beautiful, anime-inspired, local-first LLM chat client built from boring web technology.",
   "type": "module",

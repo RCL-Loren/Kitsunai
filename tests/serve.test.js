@@ -1,7 +1,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { createServe, checkRelayRequest, forwardHeaders, UPSTREAM_HEADER } from '../tools/serve.js';
+import { createServe, checkRelayRequest, forwardHeaders, UPSTREAM_HEADER, USER_AGENT } from '../tools/serve.js';
 import { createMockServer } from '../tools/mock-server.js';
 
 let app, mock, appURL, mockURL, echo, echoURL, lastEchoHeaders;
@@ -62,15 +62,18 @@ test('relays GET requests and upstream error statuses', async () => {
 test('forwards auth but strips browser and relay headers', async () => {
   await fetch(`${appURL}/relay`, {
     method: 'POST',
-    headers: { authorization: 'Bearer k', 'content-type': 'application/json', cookie: 'a=b', 'x-kitsunai-upstream': echoURL },
+    headers: { authorization: 'Bearer k', 'content-type': 'application/json', cookie: 'a=b', 'user-agent': 'Mozilla/5.0 Chrome', 'x-opencode-session': 's-1', 'x-kitsunai-upstream': echoURL },
     body: '{}',
   });
   assert.equal(lastEchoHeaders.authorization, 'Bearer k');
   assert.equal(lastEchoHeaders.cookie, undefined);
   assert.equal(lastEchoHeaders['x-kitsunai-upstream'], undefined);
+  assert.equal(lastEchoHeaders['x-opencode-session'], 's-1', 'provider headers pass through');
+  assert.equal(lastEchoHeaders['user-agent'], USER_AGENT, 'relay identifies as KitsunAI, not the browser');
+  assert.match(USER_AGENT, /^KitsunAI\/\d+\.\d+\.\d+$/);
 
-  const h = forwardHeaders({ 'sec-fetch-mode': 'cors', origin: 'x', 'x-api-key': 'k', 'anthropic-version': '1' });
-  assert.deepEqual(h, { 'x-api-key': 'k', 'anthropic-version': '1' });
+  const h = forwardHeaders({ 'sec-fetch-mode': 'cors', origin: 'x', 'x-api-key': 'k', 'anthropic-version': '1', 'user-agent': 'curl' });
+  assert.deepEqual(h, { 'user-agent': USER_AGENT, 'x-api-key': 'k', 'anthropic-version': '1' });
 });
 
 test('returns 502 when upstream is unreachable', async () => {

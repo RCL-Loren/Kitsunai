@@ -22,7 +22,7 @@ KitsunAI speaks the **OpenAI-compatible Chat Completions** API with streaming. P
 
 | Preset | Endpoint | Notes |
 |---|---|---|
-| OpenCode Go | `https://opencode.ai/zen/go/v1` | Needs an API key and the local relay. Only Chat Completions models work (GLM, Kimi, DeepSeek, LongCat, Hy); Qwen, MiniMax, Grok and GPT models use other API formats. |
+| OpenCode Go | `https://opencode.ai/zen/go/v1` | Needs an API key and the local relay. Only Chat Completions models work (GLM, Kimi, DeepSeek, LongCat, Hy, Space Bunny); Qwen, MiniMax, Grok and GPT models use other API formats. KitsunAI sends the per-conversation `x-opencode-session` header OpenCode Go requires. Its docs describe the service as intended for coding-agent traffic. |
 | llama.cpp | `http://localhost:8080/v1` | `llama-server` |
 | Ollama | `http://localhost:11434/v1` | |
 | LM Studio | `http://localhost:1234/v1` | |
@@ -37,7 +37,7 @@ A conversation stays with the model it started with. To use another model, start
 
 Browsers only let a page call another site if that site sends CORS headers. Some providers (OpenCode Go) don't, so the browser blocks them. For models with **Use local relay** turned on, requests go through `tools/serve.js`, which forwards them and streams the response back.
 
-The relay stores nothing, never logs request bodies or keys, answers only on `localhost`, and refuses requests from other sites. Details are in `DevDocs/provider-notes.md` and plan §4a.
+The relay stores nothing, never logs request bodies or keys, answers only on `localhost`, and refuses requests from other sites. It identifies itself upstream as `KitsunAI/<version>`. Details are in `DevDocs/provider-notes.md` and plan §4a.
 
 ## Using it
 

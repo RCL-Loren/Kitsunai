@@ -56,11 +56,11 @@ export async function listModels(model, { signal, fetchImpl } = {}) {
 // Resolves with a short success message, or throws ProviderError.
 // A 1-token completion is the only check that proves endpoint, key and model
 // id together: /models is often public (OpenCode Go) or ignores ids (llama.cpp).
-export async function test(model, { signal, fetchImpl } = {}) {
+export async function test(model, { signal, fetchImpl, headers = {} } = {}) {
   await send(model, '/chat/completions', {
     method: 'POST',
     signal,
-    headers: { 'content-type': 'application/json' },
+    headers: { ...headers, 'content-type': 'application/json' },
     body: JSON.stringify({ model: model.model, max_tokens: 1, messages: [{ role: 'user', content: 'ping' }] }),
   }, fetchImpl);
   return 'Connected — the model answered.';
@@ -106,11 +106,12 @@ export function chunkEvents(json) {
 // Streams a chat completion. Yields {type:'text'|'reasoning', text},
 // {type:'finish', finishReason}, {type:'usage', usage}. Aborting via `signal`
 // throws an AbortError; connection loss throws ProviderError (kind 'network').
-export async function* stream(model, { messages, signal, fetchImpl } = {}) {
+// `headers` carries provider-specific extras (e.g. OpenCode Go's session ID).
+export async function* stream(model, { messages, signal, fetchImpl, headers = {} } = {}) {
   const res = await send(model, '/chat/completions', {
     method: 'POST',
     signal,
-    headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+    headers: { ...headers, 'content-type': 'application/json', accept: 'text/event-stream' },
     body: JSON.stringify(buildChatBody(model, messages)),
   }, fetchImpl);
 

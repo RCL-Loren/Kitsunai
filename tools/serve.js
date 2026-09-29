@@ -12,9 +12,15 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readFileSync } from 'node:fs';
 import { UPSTREAM_HEADER, RELAY_MARKER } from '../js/providers/transport.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const VERSION = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
+
+// Providers ask clients to identify themselves (OpenCode Go requires it), so
+// relayed requests carry KitsunAI's own user agent instead of the browser's.
+export const USER_AGENT = `KitsunAI/${VERSION}`;
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -33,7 +39,7 @@ const TYPES = {
 // Request headers never forwarded upstream.
 const DROP_REQUEST = new Set([
   'host', 'origin', 'referer', 'cookie', 'connection', 'keep-alive', 'proxy-connection',
-  'transfer-encoding', 'te', 'trailer', 'upgrade', 'content-length', 'accept-encoding',
+  'transfer-encoding', 'te', 'trailer', 'upgrade', 'content-length', 'accept-encoding', 'user-agent',
 ]);
 
 export { UPSTREAM_HEADER };
@@ -83,7 +89,7 @@ export function checkRelayRequest(req, port) {
 }
 
 export function forwardHeaders(incoming) {
-  const out = {};
+  const out = { 'user-agent': USER_AGENT };
   for (const [k, v] of Object.entries(incoming)) {
     if (DROP_REQUEST.has(k) || k.startsWith('sec-') || k.startsWith('x-kitsunai-')) continue;
     out[k] = Array.isArray(v) ? v.join(', ') : v;

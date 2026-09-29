@@ -12,7 +12,8 @@ export function adapterFor(model) {
 // Presets only prefill the form. All use the OpenAI-compatible adapter.
 export const PRESETS = [
   { id: 'opencode-go', label: 'OpenCode Go', endpoint: 'https://opencode.ai/zen/go/v1', needsKey: true, useProxy: true,
-    hint: 'Chat Completions models only (GLM, Kimi, DeepSeek, LongCat, Hy). Requires the local relay.' },
+    sessionHeader: 'x-opencode-session',
+    hint: 'Chat Completions models only (GLM, Kimi, DeepSeek, LongCat, Hy, Space Bunny). Requires the local relay.' },
   { id: 'llama-cpp', label: 'llama.cpp', endpoint: 'http://localhost:8080/v1', needsKey: false, useProxy: false, hint: 'Local llama-server.' },
   { id: 'ollama', label: 'Ollama', endpoint: 'http://localhost:11434/v1', needsKey: false, useProxy: false, hint: 'Local Ollama server.' },
   { id: 'lm-studio', label: 'LM Studio', endpoint: 'http://localhost:1234/v1', needsKey: false, useProxy: false, hint: 'Local LM Studio server.' },
@@ -21,6 +22,15 @@ export const PRESETS = [
 ];
 
 export const presetFor = (id) => PRESETS.find((p) => p.id === id) ?? PRESETS.at(-1);
+
+// Extra request headers a provider asks for. OpenCode Go wants a stable
+// per-conversation session ID for routing and prompt caching. Other providers
+// get none: a custom header on a direct browser call would trigger a CORS
+// preflight that local servers may reject.
+export function requestHeaders(model, sessionId) {
+  const header = presetFor(model.preset).sessionHeader;
+  return header && sessionId ? { [header]: sessionId } : {};
+}
 
 // Connection status is in memory only: 'unverified' | 'testing' | 'ready' | 'error'.
 const statuses = new Map();
@@ -35,7 +45,7 @@ export function setStatus(modelId, status) {
 export async function testModel(model) {
   setStatus(model.id, { state: 'testing' });
   try {
-    const message = await adapterFor(model).test(model);
+    const message = await adapterFor(model).test(model, { headers: requestHeaders(model, crypto.randomUUID()) });
     setStatus(model.id, { state: 'ready', message });
   } catch (err) {
     setStatus(model.id, { state: 'error', message: err.message });

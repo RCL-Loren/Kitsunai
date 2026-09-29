@@ -4,7 +4,7 @@ import { renderSetupComplete } from './home.js';
 import { on } from '../events.js';
 import { listModels, getModel, saveModel, deleteModel, normalizeModel, validateModel } from '../data/models.js';
 import { countConversationsForModel } from '../data/conversations.js';
-import { PRESETS, presetFor, adapterFor, getStatus, setStatus, testModel } from '../providers/index.js';
+import { PRESETS, presetFor, adapterFor, getStatus, setStatus, testModel, requestHeaders } from '../providers/index.js';
 
 const STATUS_LABEL = { unverified: 'Not tested', testing: 'Testing…', ready: 'Ready', error: 'Error' };
 
@@ -245,7 +245,7 @@ export async function renderModelForm(main, { id, setup = false } = {}) {
           form.elements.model.focus();
         } else {
           showStatus('pending', 'Testing connection…');
-          const message = await adapterFor(model).test(model);
+          const message = await adapterFor(model).test(model, { headers: requestHeaders(model, crypto.randomUUID()) });
           lastTest = { snapshot: snapshot(model), ok: true, message };
           if (existing) setStatus(existing.id, { state: 'ready', message });
           showStatus('ok', message);
