@@ -12,6 +12,7 @@ import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { UPSTREAM_HEADER, RELAY_MARKER } from '../js/providers/transport.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -35,7 +36,11 @@ const DROP_REQUEST = new Set([
   'transfer-encoding', 'te', 'trailer', 'upgrade', 'content-length', 'accept-encoding',
 ]);
 
-export const UPSTREAM_HEADER = 'x-kitsunai-upstream';
+export { UPSTREAM_HEADER };
+
+// Every relay response carries this so the app can tell relay answers from a
+// plain static server that knows nothing about /relay.
+const RELAY_HEADERS = { [RELAY_MARKER]: '1' };
 
 function sendJSON(res, status, message, extra = {}) {
   res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...extra });
@@ -77,7 +82,7 @@ export function forwardHeaders(incoming) {
 
 async function relay(req, res, port) {
   const problem = checkRelayRequest(req, port);
-  if (problem) return sendJSON(res, 403, problem);
+  if (problem) return sendJSON(res, 403, problem, RELAY_HEADERS);
 
   const upstream = req.headers[UPSTREAM_HEADER];
   const controller = new AbortController();
@@ -98,11 +103,12 @@ async function relay(req, res, port) {
     if (controller.signal.aborted) return;
     const cause = err.cause?.code ?? err.cause?.message ?? err.message;
     console.warn(`relay  ✕ ${new URL(upstream).host}: ${cause}`);
-    return sendJSON(res, 502, `Relay could not reach ${new URL(upstream).host}: ${cause}`, { 'x-kitsunai-relay-error': '1' });
+    return sendJSON(res, 502, `Relay could not reach ${new URL(upstream).host}: ${cause}`, { ...RELAY_HEADERS, 'x-kitsunai-relay-error': '1' });
   }
 
   console.log(`relay  ${req.method} ${new URL(upstream).host} → ${upstreamRes.status}`);
   res.writeHead(upstreamRes.status, {
+    ...RELAY_HEADERS,
     'content-type': upstreamRes.headers.get('content-type') ?? 'application/octet-stream',
     'cache-control': 'no-store',
   });

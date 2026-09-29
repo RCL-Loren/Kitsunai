@@ -44,6 +44,7 @@ test('relays a streaming completion unchanged', async () => {
   assert.equal(res.status, 200);
   assert.match(res.headers.get('content-type'), /text\/event-stream/);
   assert.equal(res.headers.get('access-control-allow-origin'), null, 'relay must not add CORS headers');
+  assert.equal(res.headers.get('x-kitsunai-relay'), '1');
   const text = await res.text();
   assert.match(text, /^data: \{/);
   assert.match(text, /data: \[DONE\]\n\n$/);

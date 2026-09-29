@@ -11,6 +11,8 @@
   --foxfire: #4CC9F0;
   --ember: #FF8A3D;
   --danger: #FF6B7A;
+  --mascot-fur: #F3EDE1;
+  --mascot-line: #1A1D30;
 
   --border: color-mix(in oklab, var(--text) 10%, transparent);
   --border-lit: color-mix(in oklab, var(--foxfire) 35%, transparent);
@@ -54,4 +56,6 @@
   --foxfire: #1C8FB8;
   --ember: #E0661A;
   --danger: #C8323F;
+  --mascot-fur: #FFFFFF;
+  --mascot-line: #1B1D2A;
 }

@@ -24,6 +24,15 @@
 }
 .brand-mark { color: var(--foxfire); }
 
+.conversation-list { flex: 1; min-height: 0; overflow: auto; margin: 0 calc(-1 * var(--space-2)); }
+
+.sidebar-footer {
+  display: grid;
+  gap: 2px;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
 .main {
   display: flex;
   flex-direction: column;

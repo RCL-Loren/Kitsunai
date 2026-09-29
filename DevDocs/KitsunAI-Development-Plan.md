@@ -112,7 +112,7 @@ export const presets = [ { id, label, endpoint, needsKey } ... ];
   async *stream({ model, messages, signal }), // yields {type:'text',text} | {type:'reasoning',text}
                                               //        {type:'usage',usage} | {type:'done',finishReason}
   async listModels(model),                    // GET {endpoint}/models → string[]
-  async test(model),                          // listModels → fallback 1-token completion; throws on failure
+  async test(model),                          // 1-token completion (proves endpoint + key + model); throws on failure
 }
 ```
 
