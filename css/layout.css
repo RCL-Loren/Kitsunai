@@ -22,7 +22,8 @@
   margin: 0;
   font-size: 1.35rem;
 }
-.brand-mark { color: var(--foxfire); }
+a.brand { color: var(--text); text-decoration: none; }
+.brand-mark { display: block; border-radius: 7px; }
 
 .conversation-list { flex: 1; min-height: 0; overflow: hidden auto; margin: 0 calc(-1 * var(--space-2)); }
 
@@ -50,7 +51,41 @@
 .empty-state h2 { margin: 0 0 var(--space-2); font-size: clamp(1.6rem, 3vw, 2.2rem); }
 .empty-state p { margin: 0; color: var(--muted); }
 
+/* ── Narrow screens: top bar + off-canvas drawer ─────────────────────────── */
+
+.mobile-bar, .drawer-backdrop { display: none; }
+
 @media (max-width: 800px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar { display: none; }
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .mobile-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .mobile-bar .brand { font-size: 1.1rem; }
+  .menu-button { width: 40px; height: 40px; color: var(--text); }
+  .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 50;
+    width: min(86vw, var(--sidebar-width));
+    background: var(--surface);
+    box-shadow: 0 0 40px rgb(0 0 0 / .35);
+    transform: translateX(-102%);
+    transition: transform var(--dur-slow) var(--ease);
+  }
+  .drawer-open .sidebar { transform: none; }
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgb(5 6 12 / .5);
+    animation: fade-in var(--dur) var(--ease) both;
+  }
+  .drawer-backdrop[hidden] { display: none; }
+  .sidebar .brand { display: none; }
 }

@@ -176,7 +176,7 @@ export async function renderConversation(main, { id, modelId }) {
 
   function showError(error) {
     errorCard = document.createElement('div');
-    errorCard.className = 'error-card';
+    errorCard.className = 'error-card message-enter';
     errorCard.setAttribute('role', 'alert');
     const detail = [error.status && `HTTP ${error.status}`, error.body].filter(Boolean).join('\n');
     errorCard.innerHTML = html`
@@ -209,14 +209,16 @@ export async function renderConversation(main, { id, modelId }) {
       onUserMessage(message) {
         $('.chat-empty', log)?.remove();
         byId.set(message.id, message);
-        log.append(messageElement(message));
+        const el = messageElement(message);
+        el.classList.add('message-enter');
+        log.append(el);
         scrollToBottom();
       },
       onStreamStart() {
         errorCard?.remove();
         errorCard = null;
         const el = document.createElement('article');
-        el.className = 'message message-assistant streaming thinking';
+        el.className = 'message message-assistant streaming thinking message-enter';
         el.innerHTML = html`
           <div class="message-body md"></div>
           <div class="stream-indicator" aria-hidden="true">${mascot('thinking', { size: 40 })}</div>

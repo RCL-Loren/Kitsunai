@@ -26,7 +26,7 @@ export function renderSetupComplete(main, model) {
   main.innerHTML = html`
     <section class="empty-state screen-enter">
       ${mascot('happy', { size: 112 })}
-      <h2 class="display">All set — your companion is ready.</h2>
+      <h2 class="display">All set! Your companion is ready.</h2>
       <p>${model.name} is configured. Add more models any time from <a href="#/models">Models</a>.</p>
       <a class="btn btn-primary" href="#/new">Start a conversation</a>
     </section>`;

@@ -4,6 +4,7 @@ import { openDB } from './db.js';
 import { loadSettings, getSettings } from './data/settings.js';
 import { on } from './events.js';
 import { renderSidebar, setActiveNav } from './ui/sidebar.js';
+import { setupDrawer } from './ui/drawer.js';
 import { renderHome, renderFatal } from './ui/home.js';
 import { renderSettings } from './ui/settings-screen.js';
 import { renderModelsList, renderModelForm } from './ui/models-screen.js';
@@ -75,6 +76,7 @@ async function boot() {
     await loadSettings();
     applyTheme();
     renderSidebar(sidebar);
+    setupDrawer(document.querySelector('.app'));
   } catch (err) {
     renderFatal(main, `${err.message} KitsunAI stores conversations in IndexedDB, which may be disabled in private browsing.`);
     return;

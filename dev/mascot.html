@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>KitsunAI · Mascot sheet</title>
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/motion.css">
+  <style>
+    body { margin: 0; display: grid; grid-template-columns: 1fr 1fr; }
+    .sheet { padding: 24px; background: var(--bg); color: var(--text); display: grid; gap: 24px; }
+    .row { display: flex; gap: 32px; align-items: end; flex-wrap: wrap; }
+    figure { margin: 0; display: grid; justify-items: center; gap: 6px; font-size: .8rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <section class="sheet" data-theme="dark"></section>
+  <section class="sheet" data-theme="light"></section>
+  <script type="module">
+    import { mascot } from '../js/ui/mascot.js';
+    const states = ['idle', 'thinking', 'happy', 'error'];
+    for (const sheet of document.querySelectorAll('.sheet')) {
+      sheet.innerHTML = [128, 56, 28].map((size) => `<div class="row">${states.map((s) => `<figure>${mascot(s, { size })}<figcaption>${s} · ${size}</figcaption></figure>`).join('')}</div>`).join('')
+        + `<div class="row"><figure><img src="../assets/icon.svg" width="96" height="96" alt=""><figcaption>icon · 96</figcaption></figure><figure><img src="../assets/icon.svg" width="32" height="32" alt=""><figcaption>32</figcaption></figure><figure><img src="../assets/icon.svg" width="16" height="16" alt=""><figcaption>16</figcaption></figure></div>`;
+    }
+  </script>
+</body>
+</html>

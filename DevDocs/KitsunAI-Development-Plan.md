@@ -264,12 +264,13 @@ Tokens live in `css/tokens.css`:
 |---|---|---|
 | `--bg` / `--surface` / `--raised` | `#0D0F1A` / `#151829` / `#1E2238` | `#F7F2E8` / `#EFE7D8` / `#FFFBF3` |
 | `--text` / `--muted` | `#EDE8DC` / `#9AA0B8` | `#1B1D2A` / `#5E6275` |
-| `--foxfire` (primary accent) | `#4CC9F0` | `#1C8FB8` |
-| `--ember` (sparing: flame, warnings) | `#FF8A3D` | `#E0661A` |
+| `--foxfire` (primary accent, text-safe) | `#4CC9F0` | `#0F6C8E` (5.3:1) |
+| `--ember` (sparing: stop, warnings) | `#FF8A3D` | `#A64A0C` (5.2:1) |
+| `--foxfire-deco` / `--ember-deco` (glows, flames, mascot; non-text) | `#4CC9F0` / `#FF8A3D` | `#1C8FB8` / `#E0661A` |
 | `--glow` | `0 0 0 1px color-mix(in oklab, var(--foxfire) 35%, transparent), 0 0 18px color-mix(in oklab, var(--foxfire) 25%, transparent)` | same formula |
 
 JRPG menu language:
-- Cards have a 16px radius with **one clipped corner notch** (`clip-path` polygon) and a 1px luminous border.
+- Cards have a 16px radius with **one clipped corner notch** and a 1px luminous border. The shape lives on a `::before` layer: `clip-path` cuts the corner, a hard-stop gradient continues the border along the cut, and the selection glow is a `drop-shadow` filter, because `clip-path` clips `box-shadow`.
 - The selected or focused item gets `--glow`.
 - Pickers show a ✦ marker and a ▶ cursor on the focused item.
 - Restrained gradients only: a subtle vertical wash on the sidebar, no purple SaaS gradients.
@@ -297,7 +298,7 @@ Copy tone:
 Layout:
 - A left sidebar, 280px wide, containing: New chat, a conversation list sorted by `updatedAt` (with rename and delete), and Models and Settings at the bottom.
 - The main pane has a centered column with max-width 46rem.
-- Below 800px the sidebar becomes an overlay drawer.
+- Below 800px a top bar with a menu button appears and the sidebar becomes an off-canvas drawer. The closed drawer is `inert`, Esc and the backdrop close it, and focus moves in on open and back to the menu button on close.
 
 Markdown CSS:
 - Tables scroll horizontally, with zebra rows. (No sticky header: the horizontal scroll wrapper becomes the sticky container, so it can't stick to the page.)

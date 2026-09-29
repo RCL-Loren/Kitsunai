@@ -12,6 +12,9 @@
       ? (matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
       : theme;
   </script>
+  <meta name="theme-color" content="#0D0F1A" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#F7F2E8" media="(prefers-color-scheme: light)">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="preload" href="vendor/fonts/inter-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="vendor/katex/katex.min.css">
   <link rel="stylesheet" href="css/tokens.css">
@@ -28,8 +31,15 @@
 </head>
 <body>
   <div class="app">
-    <nav class="sidebar" aria-label="Main"></nav>
+    <header class="mobile-bar">
+      <button type="button" class="menu-button icon-btn" aria-controls="sidebar" aria-expanded="false" aria-label="Open menu">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>
+      </button>
+      <a class="brand display" href="#/"><img class="brand-mark" src="assets/icon.svg" width="24" height="24" alt=""> KitsunAI</a>
+    </header>
+    <nav class="sidebar" id="sidebar" aria-label="Main"></nav>
     <main class="main" id="main"></main>
+    <div class="drawer-backdrop" hidden></div>
   </div>
 </body>
 </html>

@@ -15,8 +15,8 @@
   left: 0; top: 8px; bottom: 8px;
   width: 2px;
   border-radius: 2px;
-  background: var(--foxfire);
-  box-shadow: 0 0 8px var(--foxfire);
+  background: var(--foxfire-deco);
+  box-shadow: 0 0 8px var(--foxfire-deco);
 }
 .conv-link {
   flex: 1;
@@ -82,14 +82,11 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-5);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-card);
   color: var(--text);
   text-decoration: none;
-  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  transition: transform var(--dur-fast) var(--ease);
 }
-.companion:hover, .companion:focus-visible { outline: none; border-color: transparent; box-shadow: var(--glow); background: var(--raised); transform: translateX(3px); }
+.companion:hover, .companion:focus-visible { outline: none; transform: translateX(4px); }
 .companion-cursor { color: var(--foxfire); font-size: .75rem; opacity: 0; transition: opacity var(--dur-fast) var(--ease); }
 .companion:hover .companion-cursor, .companion:focus-visible .companion-cursor { opacity: 1; }
 .companion-text { display: grid; }
@@ -100,6 +97,7 @@
 
 .chat {
   display: flex;
+  flex: none; /* grow with content; a shrunken box would release the sticky header and composer */
   flex-direction: column;
   min-height: 100%;
 }
@@ -147,7 +145,7 @@
 }
 .message-assistant .message-body { padding: 0 var(--space-1); }
 .message-status { margin: var(--space-2) var(--space-1) 0; color: var(--muted); font-size: .8rem; }
-.message-status::before { content: "■ "; color: var(--ember); font-size: .7em; vertical-align: 1px; }
+.message-status::before { content: "■ "; color: var(--ember-deco); font-size: .7em; vertical-align: 1px; }
 
 .thoughts { margin: 0 var(--space-1) var(--space-3); color: var(--muted); font-size: .88rem; }
 .thoughts summary { cursor: pointer; width: max-content; }
@@ -169,8 +167,8 @@
   margin-left: 3px;
   vertical-align: -1px;
   border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
-  background: var(--foxfire);
-  box-shadow: 0 0 8px var(--foxfire);
+  background: var(--foxfire-deco);
+  box-shadow: 0 0 8px var(--foxfire-deco);
   animation: flicker 1s ease-in-out infinite;
 }
 /* Keep the flame inline with the last paragraph rather than on its own line. */
@@ -277,3 +275,6 @@
 }
 .action-btn:hover { color: var(--text); border-color: var(--border); }
 .action-btn:focus-visible { opacity: 1; }
+
+/* New messages rise in; history renders without motion. */
+.message-enter { animation: rise-in var(--dur-slow) var(--ease) both; }

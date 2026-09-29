@@ -14,7 +14,7 @@ export function renderSettings(main) {
         <span class="save-state" role="status" aria-live="polite"></span>
       </header>
       <form class="settings-form" novalidate>
-        <section class="settings-group">
+        <section class="settings-group card">
           <h3>Appearance</h3>
           <fieldset class="segmented">
             <legend>Theme</legend>
@@ -26,7 +26,7 @@ export function renderSettings(main) {
           </fieldset>
         </section>
 
-        <section class="settings-group">
+        <section class="settings-group card">
           <h3>Conversations</h3>
           <div class="field">
             <label for="s-displayName">Your name</label>
@@ -39,7 +39,7 @@ export function renderSettings(main) {
           </label>
         </section>
 
-        <section class="settings-group">
+        <section class="settings-group card">
           <h3>Export</h3>
           <label class="checkbox">
             <input type="checkbox" name="exportFrontmatter" ${s.exportFrontmatter ? 'checked' : ''}>
@@ -56,7 +56,7 @@ export function renderSettings(main) {
           </div>
         </section>
 
-        <section class="settings-group">
+        <section class="settings-group card">
           <h3>Privacy &amp; storage</h3>
           <p class="settings-note">Conversations, models and settings are stored only in this browser (IndexedDB). <strong>API keys are stored unencrypted</strong> — anyone with access to this browser profile can read them. Messages are sent only to the model endpoints you configure, through the local relay for models that use it.</p>
         </section>

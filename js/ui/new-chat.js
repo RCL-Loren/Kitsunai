@@ -26,7 +26,7 @@ export async function renderNewChat(main) {
       <ul class="companion-list" role="list" aria-labelledby="picker-title">
         ${models.map((m) => html`
           <li>
-            <a class="companion" href="#/new/${m.id}">
+            <a class="companion card card-glow" href="#/new/${m.id}">
               <span class="companion-cursor" aria-hidden="true">▶</span>
               <span class="companion-text">
                 <span class="companion-name">${m.name}</span>

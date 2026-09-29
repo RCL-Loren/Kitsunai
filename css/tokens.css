@@ -8,9 +8,11 @@
   --raised: #1E2238;
   --text: #EDE8DC;
   --muted: #9AA0B8;
-  --foxfire: #4CC9F0;
+  --foxfire: #4CC9F0;       /* text-safe accent */
   --ember: #FF8A3D;
   --danger: #FF6B7A;
+  --foxfire-deco: #4CC9F0;  /* glows, flames, mascot (non-text) */
+  --ember-deco: #FF8A3D;
   --mascot-fur: #F3EDE1;
   --mascot-line: #1A1D30;
 
@@ -29,7 +31,7 @@
 
   --border: color-mix(in oklab, var(--text) 10%, transparent);
   --border-lit: color-mix(in oklab, var(--foxfire) 35%, transparent);
-  --glow: 0 0 0 1px var(--border-lit), 0 0 18px color-mix(in oklab, var(--foxfire) 25%, transparent);
+  --glow: 0 0 0 1px var(--border-lit), 0 0 18px color-mix(in oklab, var(--foxfire-deco) 25%, transparent);
   --sidebar-wash: linear-gradient(180deg, color-mix(in oklab, var(--foxfire) 5%, var(--surface)) 0%, var(--surface) 40%);
 
   --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
@@ -66,9 +68,12 @@
   --raised: #FFFBF3;
   --text: #1B1D2A;
   --muted: #5E6275;
-  --foxfire: #1C8FB8;
-  --ember: #E0661A;
-  --danger: #C8323F;
+  --foxfire: #0F6C8E;       /* 5.3:1 on washi */
+  --ember: #A64A0C;
+  --danger: #B02A36;
+  --foxfire-deco: #1C8FB8;
+  --ember-deco: #E0661A;
+  --border-lit: color-mix(in oklab, var(--foxfire-deco) 45%, transparent);
   --mascot-fur: #FFFFFF;
   --mascot-line: #1B1D2A;
 

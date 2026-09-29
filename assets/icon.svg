@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <title>KitsunAI</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1E2238"/>
+      <stop offset="1" stop-color="#0D0F1A"/>
+    </linearGradient>
+    <radialGradient id="glow" cx=".78" cy=".24" r=".4">
+      <stop offset="0" stop-color="#4CC9F0" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#4CC9F0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <rect width="128" height="128" rx="28" fill="url(#glow)"/>
+  <rect x="1.5" y="1.5" width="125" height="125" rx="26.5" fill="none" stroke="#4CC9F0" stroke-opacity=".35" stroke-width="3"/>
+  <g transform="translate(6 18)">
+    <path d="M24 50 L31 10 L50 34 Q60 30 70 34 L89 10 L96 50 L103 64 L91 69 L95 80 L78 82 L60 101 L42 82 L25 80 L29 69 L17 64 Z" fill="#F3EDE1" stroke="#0D0F1A" stroke-width="2.4" stroke-linejoin="round"/>
+    <path d="M33 21 L46 35 L35 42 Z M87 21 L74 35 L85 42 Z" fill="#FF8A3D"/>
+    <path d="M37 53q9-8 18-4 M83 53q-9-8-18-4" fill="none" stroke="#FF8A3D" stroke-width="3.6" stroke-linecap="round"/>
+    <path d="M41 66q6.5-7 13 0 M66 66q6.5-7 13 0" fill="none" stroke="#1A1D30" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M56 87 Q60 85 64 87 L60 92 Z" fill="#1A1D30"/>
+    <path d="M112 2 C108 10 116 13 115 21 C120 18 122 26 120 31 C117 38 107 40 102 34 C98 29 100 21 105 18 C106 24 109 24 110 21 C111 15 108 9 112 2 Z" fill="#4CC9F0"/>
+    <ellipse cx="110" cy="31" rx="3.6" ry="4.6" fill="#F3EDE1" opacity=".85"/>
+  </g>
+</svg>
