@@ -1,0 +1,215 @@
+/* ── Sidebar conversation list ───────────────────────────────────────────── */
+
+.conv-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px; }
+.conv-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: var(--radius-sm);
+}
+.conv-item:hover, .conv-item:focus-within { background: color-mix(in oklab, var(--text) 5%, transparent); }
+.conv-item.active { background: color-mix(in oklab, var(--foxfire) 13%, transparent); }
+.conv-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 8px; bottom: 8px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--foxfire);
+  box-shadow: 0 0 8px var(--foxfire);
+}
+.conv-link {
+  flex: 1;
+  min-width: 0;
+  padding: 7px var(--space-3);
+  color: var(--muted);
+  text-decoration: none;
+  font-size: .92rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.conv-item:hover .conv-link, .conv-item.active .conv-link { color: var(--text); }
+.conv-actions { display: flex; opacity: 0; padding-right: 4px; }
+.conv-item:hover .conv-actions, .conv-item:focus-within .conv-actions { opacity: 1; }
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .8rem;
+}
+.icon-btn:hover { color: var(--text); background: color-mix(in oklab, var(--text) 8%, transparent); }
+.conv-rename { flex: 1; min-width: 0; width: auto !important; margin: 2px; padding: 5px var(--space-2) !important; font-size: .92rem; }
+.conv-item.confirming { flex-wrap: wrap; gap: var(--space-2); padding: var(--space-2) var(--space-3); background: color-mix(in oklab, var(--danger) 8%, var(--surface)); }
+.conv-confirm-text { font-size: .85rem; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv-confirm-actions { display: flex; gap: var(--space-2); }
+.conv-empty { margin: var(--space-2) var(--space-3); color: var(--muted); font-size: .88rem; }
+.btn-sm { min-height: 28px; padding: 0 var(--space-3); font-size: .82rem; }
+
+/* ── New chat picker ─────────────────────────────────────────────────────── */
+
+.picker {
+  width: 100%;
+  max-width: 30rem;
+  margin: auto;
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+.picker-kicker { margin: 0 0 var(--space-1); color: var(--foxfire); font-size: .95rem; letter-spacing: .12em; }
+.picker h2 { margin: 0 0 var(--space-5); font-size: clamp(1.6rem, 3vw, 2.1rem); }
+.companion-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); text-align: left; }
+.companion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+}
+.companion:hover, .companion:focus-visible { outline: none; border-color: transparent; box-shadow: var(--glow); background: var(--raised); transform: translateX(3px); }
+.companion-cursor { color: var(--foxfire); font-size: .75rem; opacity: 0; transition: opacity var(--dur-fast) var(--ease); }
+.companion:hover .companion-cursor, .companion:focus-visible .companion-cursor { opacity: 1; }
+.companion-text { display: grid; }
+.companion-name { font-weight: 650; font-size: 1.08rem; }
+.companion-meta { color: var(--muted); font-size: .88rem; }
+
+/* ── Conversation ────────────────────────────────────────────────────────── */
+
+.chat {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.chat-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  background: color-mix(in oklab, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.chat-title { flex: 1; min-width: 0; margin: 0; font-size: 1rem; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.model-chip {
+  flex: none;
+  padding: 3px 10px;
+  border: 1px solid var(--border-lit);
+  border-radius: 999px;
+  color: var(--foxfire);
+  font-size: .8rem;
+  font-weight: 600;
+}
+
+.chat-log {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-width);
+  margin: 0 auto;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.chat-empty { margin: auto; display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
+.chat-empty h3 { margin: 0; font-size: 1.5rem; }
+
+.message-user .message-body {
+  padding: var(--space-3) var(--space-4);
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card) var(--radius-card) 4px var(--radius-card);
+}
+.message-assistant .message-body { padding: 0 var(--space-1); }
+.message-status { margin: var(--space-2) var(--space-1) 0; color: var(--muted); font-size: .8rem; }
+.message-status::before { content: "■ "; color: var(--ember); font-size: .7em; vertical-align: 1px; }
+
+.thoughts { margin: 0 var(--space-1) var(--space-3); color: var(--muted); font-size: .88rem; }
+.thoughts summary { cursor: pointer; width: max-content; }
+.thoughts-body {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--border);
+  white-space: pre-wrap;
+  max-height: 16rem;
+  overflow: auto;
+}
+
+.stream-indicator { display: none; }
+.message.thinking .stream-indicator { display: block; margin-left: var(--space-1); }
+.message.streaming:not(.thinking) .message-body::after {
+  content: "";
+  display: inline-block;
+  width: .5em; height: .85em;
+  margin-left: 3px;
+  vertical-align: -1px;
+  border-radius: 50% 50% 45% 45% / 60% 60% 40% 40%;
+  background: var(--foxfire);
+  box-shadow: 0 0 8px var(--foxfire);
+  animation: flicker 1s ease-in-out infinite;
+}
+/* Keep the flame inline with the last paragraph rather than on its own line. */
+.message.streaming .message-body > p:last-child { display: inline; }
+
+.error-card {
+  display: flex;
+  gap: var(--space-4);
+  align-items: flex-start;
+  padding: var(--space-4);
+  border: 1px solid color-mix(in oklab, var(--danger) 45%, transparent);
+  border-radius: var(--radius-card);
+  background: color-mix(in oklab, var(--danger) 6%, var(--surface));
+}
+.error-content { min-width: 0; }
+.error-title { margin: 0; font-weight: 650; }
+.error-message { margin: var(--space-1) 0 var(--space-3); color: var(--muted); }
+.error-card details { margin-bottom: var(--space-3); font-size: .85rem; color: var(--muted); }
+.error-card pre { white-space: pre-wrap; font-family: var(--font-mono); font-size: .8rem; max-height: 10rem; overflow: auto; }
+
+/* ── Composer ────────────────────────────────────────────────────────────── */
+
+.composer-dock {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: 0 var(--space-4) var(--space-3);
+  background: linear-gradient(to top, var(--bg) 70%, transparent);
+}
+.composer { max-width: var(--content-width); margin: 0 auto; }
+.composer-box {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.composer-box:focus-within { border-color: transparent; box-shadow: var(--glow); }
+.composer textarea {
+  flex: 1;
+  max-height: 40vh;
+  padding: 8px var(--space-2) !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  resize: none;
+  line-height: 1.55;
+}
+.composer textarea:disabled { cursor: not-allowed; }
+.composer-button { flex: none; }
+.composer-stop { background: transparent; color: var(--ember); border-color: color-mix(in oklab, var(--ember) 50%, transparent); }
+.composer-stop:hover { border-color: var(--ember); }
+.composer-hint { margin: 6px var(--space-2) 0; color: var(--muted); font-size: .75rem; text-align: right; }
+.composer-hint:empty { display: none; }

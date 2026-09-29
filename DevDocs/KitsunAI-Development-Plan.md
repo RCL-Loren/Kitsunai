@@ -38,9 +38,9 @@ Security:
 ```
 index.html
 package.json
-css/      tokens.css base.css layout.css components.css markdown.css motion.css
+css/      tokens.css base.css layout.css components.css markdown.css chat.css motion.css
 js/
-  main.js                 boot, hash router: #/chat/:id  #/new  #/models  #/settings
+  main.js                 boot, hash router: #/chat/:id  #/new  #/new/:modelId (draft)  #/models  #/settings
   events.js               tiny pub/sub (emit/on/off) — no store framework
   db.js                   promise wrapper over IndexedDB (~120 lines)
   data/                   conversations.js messages.js models.js settings.js

@@ -5,6 +5,9 @@ import { loadSettings } from './data/settings.js';
 import { renderSidebar, setActiveNav } from './ui/sidebar.js';
 import { renderHome, renderPlaceholder, renderFatal } from './ui/home.js';
 import { renderModelsList, renderModelForm } from './ui/models-screen.js';
+import { renderNewChat } from './ui/new-chat.js';
+import { renderConversation } from './ui/conversation-view.js';
+import { attachCodeCopy } from './render/code-blocks.js';
 
 const root = document.documentElement;
 const prefersLight = matchMedia('(prefers-color-scheme: light)');
@@ -22,8 +25,9 @@ const ROUTES = [
   [/^\/models$/, 'models', (el) => renderModelsList(el)],
   [/^\/models\/new$/, 'models', (el, _, q) => renderModelForm(el, { setup: q.has('setup') })],
   [/^\/models\/([\w-]+)$/, 'models', (el, [id]) => renderModelForm(el, { id })],
-  [/^\/new$/, 'new', (el) => renderPlaceholder(el, 'Choose your companion', 'Starting conversations arrives in milestone 3.')],
-  [/^\/chat\/([\w-]+)$/, null, (el) => renderPlaceholder(el, 'Conversation', 'Conversations arrive in milestone 3.')],
+  [/^\/new$/, 'new', (el) => renderNewChat(el)],
+  [/^\/new\/([\w-]+)$/, null, (el, [modelId]) => renderConversation(el, { modelId })],
+  [/^\/chat\/([\w-]+)$/, null, (el, [id]) => renderConversation(el, { id })],
   [/^\/settings$/, 'settings', (el) => renderPlaceholder(el, 'Settings', 'Settings arrive in milestone 5.')],
 ];
 
@@ -57,10 +61,11 @@ async function boot() {
   const missing = ['markdownit', 'hljs', 'katex'].filter((name) => !(name in globalThis));
   if (missing.length) console.error(`[KitsunAI] Missing vendored libraries: ${missing.join(', ')}. Run scripts/vendor.sh.`);
 
-  renderSidebar(sidebar);
+  attachCodeCopy(main);
   try {
     await openDB();
     await loadSettings();
+    renderSidebar(sidebar);
   } catch (err) {
     renderFatal(main, `${err.message} KitsunAI stores conversations in IndexedDB, which may be disabled in private browsing.`);
     return;

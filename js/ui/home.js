@@ -22,6 +22,7 @@ export async function renderHome(main) {
 }
 
 export function renderSetupComplete(main, model) {
+  history.replaceState(null, '', '#/'); // a reload shows home, not the setup form again
   main.innerHTML = html`
     <section class="empty-state screen-enter">
       ${mascot('happy', { size: 112 })}

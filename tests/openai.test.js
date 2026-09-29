@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listModels, test as testConnection, send } from '../js/providers/openai.js';
+import { listModels, test as testConnection, send, stream, buildChatBody, chunkEvents } from '../js/providers/openai.js';
 import { providerFetch } from '../js/providers/transport.js';
 import { httpErrorMessage, extractErrorDetail } from '../js/providers/errors.js';
 
@@ -102,4 +102,127 @@ test('error message helpers', () => {
   assert.equal(extractErrorDetail('<html><b>Bad</b> gateway</html>'), 'Bad gateway');
   assert.match(httpErrorMessage(429, ''), /^Rate limited.*\(429\)$/);
   assert.match(httpErrorMessage(503, '{"error":{"message":"overloaded"}}'), /server error.*503: overloaded/);
+});
+
+// ── Streaming ───────────────────────────────────────────────────────────────
+
+// A Response whose body emits `chunks` (strings) one by one.
+function sseResponse(chunks, { close = true, fail = false } = {}) {
+  const encoder = new TextEncoder();
+  let i = 0;
+  const body = new ReadableStream({
+    pull(controller) {
+      if (i < chunks.length) return controller.enqueue(encoder.encode(chunks[i++]));
+      if (fail) return controller.error(new TypeError('terminated'));
+      if (close) controller.close();
+    },
+  });
+  return new Response(body, { status: 200, headers: { 'content-type': 'text/event-stream' } });
+}
+
+const chunk = (delta, extra = {}) => `data: ${JSON.stringify({ choices: [{ index: 0, delta, finish_reason: null }], ...extra })}\n\n`;
+
+async function collect(iter) {
+  const out = [];
+  for await (const e of iter) out.push(e);
+  return out;
+}
+
+test('buildChatBody adds system prompt, parameters, and extra overrides', () => {
+  const body = buildChatBody(
+    { model: 'm', systemPrompt: 'Be brief.', parameters: { temperature: 0.2, max_tokens: 50, extra: { seed: 1, stream_options: null } } },
+    [{ role: 'user', content: 'hi' }],
+  );
+  assert.deepEqual(body, {
+    model: 'm',
+    messages: [{ role: 'system', content: 'Be brief.' }, { role: 'user', content: 'hi' }],
+    stream: true,
+    temperature: 0.2,
+    max_tokens: 50,
+    seed: 1,
+  });
+  assert.deepEqual(buildChatBody({ model: 'm', parameters: {} }, []).stream_options, { include_usage: true });
+});
+
+test('stream yields text, reasoning, finish, and usage from split chunks', async () => {
+  const raw = [
+    chunk({ role: 'assistant', content: '' }),
+    chunk({ reasoning_content: 'Think.' }),
+    chunk({ content: 'Hello' }),
+    chunk({ content: ', $x$' }),
+    `data: ${JSON.stringify({ choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`,
+    `data: ${JSON.stringify({ choices: [], usage: { total_tokens: 9 } })}\n\n`,
+    'data: [DONE]\n\n',
+  ].join('');
+  const pieces = raw.match(/[\s\S]{1,13}/g); // split mid-JSON
+  const { fetchImpl, calls } = stubFetch({ 'POST /chat/completions': () => sseResponse(pieces) });
+  const events = await collect(stream(model(), { messages: [{ role: 'user', content: 'hi' }], fetchImpl }));
+  assert.deepEqual(events, [
+    { type: 'reasoning', text: 'Think.' },
+    { type: 'text', text: 'Hello' },
+    { type: 'text', text: ', $x$' },
+    { type: 'finish', finishReason: 'stop' },
+    { type: 'usage', usage: { total_tokens: 9 } },
+  ]);
+  assert.equal(JSON.parse(calls[0].body).stream, true);
+  assert.equal(calls[0].headers.get('accept'), 'text/event-stream');
+});
+
+test('stream accepts the `reasoning` alias and stops at [DONE]', async () => {
+  const { fetchImpl } = stubFetch({
+    'POST /chat/completions': () => sseResponse([chunk({ reasoning: 'r' }), 'data: [DONE]\n\n', chunk({ content: 'after done' })], { close: false }),
+  });
+  assert.deepEqual(await collect(stream(model(), { messages: [], fetchImpl })), [{ type: 'reasoning', text: 'r' }]);
+});
+
+test('stream ends cleanly when the server closes without [DONE]', async () => {
+  const { fetchImpl } = stubFetch({ 'POST /chat/completions': () => sseResponse([chunk({ content: 'a' }), 'data: {"choices":[{"delta":{"content":"b"}}]}']) });
+  const events = await collect(stream(model(), { messages: [], fetchImpl }));
+  assert.deepEqual(events.map((e) => e.text), ['a', 'b']);
+});
+
+test('stream handles servers that ignore stream:true and return JSON', async () => {
+  const { fetchImpl } = stubFetch({
+    'POST /chat/completions': json(200, { choices: [{ message: { content: 'whole answer' }, finish_reason: 'stop' }] }),
+  });
+  const events = await collect(stream(model(), { messages: [], fetchImpl }));
+  assert.deepEqual(events, [{ type: 'text', text: 'whole answer' }, { type: 'finish', finishReason: 'stop' }]);
+});
+
+test('a dropped connection mid-stream becomes a network ProviderError', async () => {
+  const { fetchImpl } = stubFetch({ 'POST /chat/completions': () => sseResponse([chunk({ content: 'partial' })], { fail: true }) });
+  const seen = [];
+  await assert.rejects(async () => { for await (const e of stream(model(), { messages: [], fetchImpl })) seen.push(e); }, (err) => err.kind === 'network');
+  assert.deepEqual(seen, [{ type: 'text', text: 'partial' }]);
+});
+
+test('an error payload inside the stream is surfaced', async () => {
+  const { fetchImpl } = stubFetch({ 'POST /chat/completions': () => sseResponse(['data: {"error":{"message":"context length exceeded"}}\n\n']) });
+  await assert.rejects(collect(stream(model(), { messages: [], fetchImpl })), /context length exceeded/);
+});
+
+test('aborting mid-stream throws AbortError', async () => {
+  const controller = new AbortController();
+  const fetchImpl = async (_url, init) => {
+    const body = new ReadableStream({
+      start(c) {
+        c.enqueue(new TextEncoder().encode(chunk({ content: 'x' })));
+        init.signal.addEventListener('abort', () => c.error(new DOMException('Aborted', 'AbortError')));
+      },
+    });
+    return new Response(body, { headers: { 'content-type': 'text/event-stream' } });
+  };
+  const seen = [];
+  await assert.rejects(async () => {
+    for await (const e of stream(model(), { messages: [], signal: controller.signal, fetchImpl })) {
+      seen.push(e);
+      controller.abort();
+    }
+  }, { name: 'AbortError' });
+  assert.equal(seen.length, 1);
+});
+
+test('chunkEvents ignores empty deltas', () => {
+  assert.deepEqual(chunkEvents({ choices: [{ delta: { content: '' } }] }), []);
+  assert.deepEqual(chunkEvents({ choices: [] }), []);
 });

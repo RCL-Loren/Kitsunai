@@ -24,7 +24,7 @@
 }
 .brand-mark { color: var(--foxfire); }
 
-.conversation-list { flex: 1; min-height: 0; overflow: auto; margin: 0 calc(-1 * var(--space-2)); }
+.conversation-list { flex: 1; min-height: 0; overflow: hidden auto; margin: 0 calc(-1 * var(--space-2)); }
 
 .sidebar-footer {
   display: grid;

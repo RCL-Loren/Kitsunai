@@ -1,8 +1,9 @@
 // OpenAI-compatible Chat Completions adapter (OpenCode Go, llama.cpp, Ollama,
-// LM Studio, OpenRouter, ...). Streaming is added in milestone 3.
+// LM Studio, OpenRouter, ...).
 
 import { providerFetch, RELAY_MARKER } from './transport.js';
 import { ProviderError, httpErrorMessage, extractErrorDetail } from './errors.js';
+import { createSSEParser } from './sse.js';
 
 const hostOf = (endpoint) => {
   try { return new URL(endpoint).host; } catch { return endpoint; }
@@ -65,4 +66,93 @@ export async function test(model, { signal, fetchImpl } = {}) {
   return 'Connected — the model answered.';
 }
 
-export const openai = { id: 'openai-compatible', label: 'OpenAI-compatible', listModels, test };
+// Pure: the Chat Completions request body. Extra JSON is merged last so users
+// can override anything (e.g. "stream_options": null for picky servers).
+export function buildChatBody(model, messages) {
+  const { temperature, top_p, max_tokens, extra } = model.parameters ?? {};
+  const body = {
+    model: model.model,
+    messages: model.systemPrompt ? [{ role: 'system', content: model.systemPrompt }, ...messages] : messages,
+    stream: true,
+    stream_options: { include_usage: true },
+  };
+  if (temperature !== undefined) body.temperature = temperature;
+  if (top_p !== undefined) body.top_p = top_p;
+  if (max_tokens !== undefined) body.max_tokens = max_tokens;
+  for (const [k, v] of Object.entries(extra ?? {})) {
+    if (v === null) delete body[k];
+    else body[k] = v;
+  }
+  return body;
+}
+
+// Pure: maps one parsed chunk to adapter events.
+export function chunkEvents(json) {
+  if (json.error) {
+    const message = typeof json.error === 'string' ? json.error : json.error.message ?? JSON.stringify(json.error);
+    throw new ProviderError(`The provider reported an error mid-response: ${message}`, { kind: 'http' });
+  }
+  const events = [];
+  const choice = json.choices?.[0];
+  const delta = choice?.delta ?? choice?.message ?? {};
+  const reasoning = delta.reasoning_content ?? delta.reasoning;
+  if (reasoning) events.push({ type: 'reasoning', text: reasoning });
+  if (delta.content) events.push({ type: 'text', text: delta.content });
+  if (choice?.finish_reason) events.push({ type: 'finish', finishReason: choice.finish_reason });
+  if (json.usage) events.push({ type: 'usage', usage: json.usage });
+  return events;
+}
+
+// Streams a chat completion. Yields {type:'text'|'reasoning', text},
+// {type:'finish', finishReason}, {type:'usage', usage}. Aborting via `signal`
+// throws an AbortError; connection loss throws ProviderError (kind 'network').
+export async function* stream(model, { messages, signal, fetchImpl } = {}) {
+  const res = await send(model, '/chat/completions', {
+    method: 'POST',
+    signal,
+    headers: { 'content-type': 'application/json', accept: 'text/event-stream' },
+    body: JSON.stringify(buildChatBody(model, messages)),
+  }, fetchImpl);
+
+  // Some servers ignore stream:true and answer with one JSON document.
+  if (/application\/json/.test(res.headers.get('content-type') ?? '')) {
+    yield* chunkEvents(await res.json());
+    return;
+  }
+
+  let queue = [];
+  let done = false;
+  const parser = createSSEParser(({ data }) => {
+    if (done) return;
+    if (data.trim() === '[DONE]') { done = true; return; }
+    let json;
+    try {
+      json = JSON.parse(data);
+    } catch {
+      return; // ignore non-JSON keep-alives some proxies inject
+    }
+    queue.push(...chunkEvents(json));
+  });
+
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  try {
+    while (!done) {
+      let result;
+      try {
+        result = await reader.read();
+      } catch (err) {
+        if (err.name === 'AbortError' || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        throw new ProviderError('The connection dropped before the response finished.', { kind: 'network' });
+      }
+      if (result.done) { parser.end(); done = true; }
+      else parser.push(result.value);
+      const events = queue;
+      queue = [];
+      yield* events;
+    }
+  } finally {
+    reader.cancel().catch(() => {});
+  }
+}
+
+export const openai = { id: 'openai-compatible', label: 'OpenAI-compatible', listModels, test, stream };
