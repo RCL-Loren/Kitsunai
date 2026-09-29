@@ -1,0 +1,57 @@
+/* Design tokens. :root holds the dark (ink) theme; [data-theme="light"] (washi) overrides. */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #0D0F1A;
+  --surface: #151829;
+  --raised: #1E2238;
+  --text: #EDE8DC;
+  --muted: #9AA0B8;
+  --foxfire: #4CC9F0;
+  --ember: #FF8A3D;
+  --danger: #FF6B7A;
+
+  --border: color-mix(in oklab, var(--text) 10%, transparent);
+  --border-lit: color-mix(in oklab, var(--foxfire) 35%, transparent);
+  --glow: 0 0 0 1px var(--border-lit), 0 0 18px color-mix(in oklab, var(--foxfire) 25%, transparent);
+  --sidebar-wash: linear-gradient(180deg, color-mix(in oklab, var(--foxfire) 5%, var(--surface)) 0%, var(--surface) 40%);
+
+  --font-display: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", system-ui, sans-serif;
+  --font-ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-card: 16px;
+  --notch: 12px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --sidebar-width: 280px;
+  --content-width: 46rem;
+
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+  --dur-slow: 220ms;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #F7F2E8;
+  --surface: #EFE7D8;
+  --raised: #FFFBF3;
+  --text: #1B1D2A;
+  --muted: #5E6275;
+  --foxfire: #1C8FB8;
+  --ember: #E0661A;
+  --danger: #C8323F;
+}

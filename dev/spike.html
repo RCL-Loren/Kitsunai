@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KitsunAI · Provider spike</title>
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <style>
+    body { padding: var(--space-5); max-width: 60rem; margin: 0 auto; }
+    fieldset { border: 1px solid var(--border); border-radius: var(--radius); margin: 0 0 var(--space-4); padding: var(--space-4); }
+    label { display: block; margin-bottom: var(--space-2); color: var(--muted); font-size: .9rem; }
+    input { width: 100%; padding: var(--space-2); background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .row { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+    button { padding: var(--space-2) var(--space-3); background: var(--raised); border: 1px solid var(--border-lit); border-radius: var(--radius-sm); }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    td, th { text-align: left; padding: var(--space-2); border-bottom: 1px solid var(--border); vertical-align: top; }
+    .ok { color: var(--foxfire); } .fail { color: var(--danger); }
+    pre { white-space: pre-wrap; font-family: var(--font-mono); font-size: .8rem; margin: 0; max-height: 8rem; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1 class="display">Provider spike</h1>
+  <p>Checks whether each endpoint is reachable directly from the browser (CORS) and through the local relay. Needs <code>node tools/serve.js</code> and <code>node tools/mock-server.js</code>.</p>
+
+  <fieldset>
+    <label>Mock endpoint <input id="mock" value="http://127.0.0.1:8090/v1"></label>
+    <label>OpenCode Go endpoint <input id="go" value="https://opencode.ai/zen/go/v1"></label>
+    <label>OpenCode Go API key (optional; never stored) <input id="key" type="password" autocomplete="off"></label>
+    <label>OpenCode Go model <input id="goModel" value="kimi-k3"></label>
+  </fieldset>
+
+  <div class="row">
+    <button id="run">Run all checks</button>
+  </div>
+
+  <table>
+    <thead><tr><th>Check</th><th>Result</th><th>Detail</th></tr></thead>
+    <tbody id="results"></tbody>
+  </table>
+
+  <script type="module">
+    const $ = (id) => document.getElementById(id);
+
+    const call = (url, init = {}, viaRelay = false) => viaRelay
+      ? fetch('/relay', { ...init, headers: { ...init.headers, 'x-kitsunai-upstream': url } })
+      : fetch(url, init);
+
+    const chat = (model, key) => ({
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
+      body: JSON.stringify({ model, stream: true, max_tokens: 16, messages: [{ role: 'user', content: 'Say hi in three words.' }] }),
+    });
+
+    async function check(name, fn) {
+      const row = $('results').insertRow();
+      row.insertCell().textContent = name;
+      const result = row.insertCell();
+      const detail = row.insertCell().appendChild(document.createElement('pre'));
+      result.textContent = '…';
+      const t0 = performance.now();
+      try {
+        const res = await fn();
+        const body = await res.text();
+        const ms = Math.round(performance.now() - t0);
+        result.textContent = `HTTP ${res.status} · ${ms} ms`;
+        result.className = res.ok ? 'ok' : '';
+        detail.textContent = body.slice(0, 400);
+      } catch (err) {
+        result.textContent = 'Blocked / failed';
+        result.className = 'fail';
+        detail.textContent = String(err);
+      }
+    }
+
+    $('run').onclick = async () => {
+      $('results').replaceChildren();
+      const mock = $('mock').value, go = $('go').value, key = $('key').value.trim(), goModel = $('goModel').value;
+      await check('Mock · models · direct', () => call(`${mock}/models`));
+      await check('Mock · stream · direct', () => call(`${mock}/chat/completions`, chat('mock-fox')));
+      await check('Mock · stream · relay', () => call(`${mock}/chat/completions`, chat('mock-fox'), true));
+      await check('OpenCode Go · models · direct', () => call(`${go}/models`));
+      await check('OpenCode Go · models · relay', () => call(`${go}/models`, {}, true));
+      await check('OpenCode Go · chat · direct', () => call(`${go}/chat/completions`, chat(goModel, key || 'invalid')));
+      await check('OpenCode Go · chat · relay', () => call(`${go}/chat/completions`, chat(goModel, key || 'invalid'), true));
+    };
+  </script>
+</body>
+</html>
