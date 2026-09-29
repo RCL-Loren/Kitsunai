@@ -1,0 +1,131 @@
+/* Rendered Markdown (.md). Shared by user and assistant messages. */
+
+.md { overflow-wrap: anywhere; }
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+
+.md p, .md ul, .md ol, .md blockquote, .md .table-wrap, .md .code-block, .md .math-block, .md hr {
+  margin: 0 0 1em;
+}
+
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+  margin: 1.5em 0 .6em;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+.md h1 { font-size: 1.5rem; }
+.md h2 { font-size: 1.3rem; }
+.md h3 { font-size: 1.12rem; }
+.md h4, .md h5, .md h6 { font-size: 1rem; }
+
+.md ul, .md ol { padding-left: 1.5em; }
+.md li { margin: .25em 0; }
+.md li > ul, .md li > ol { margin: .25em 0; }
+.md li > p { margin: 0 0 .5em; }
+.md ul li::marker { color: var(--foxfire); }
+.md ol li::marker { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.md a { color: var(--foxfire); text-underline-offset: 2px; text-decoration-thickness: 1px; }
+.md a:hover { text-decoration-thickness: 2px; }
+.md strong { font-weight: 650; }
+.md img { max-width: 100%; border-radius: var(--radius-sm); }
+
+.md hr { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--border-lit), transparent); margin: 2em 0; }
+
+.md blockquote {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--foxfire);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: color-mix(in oklab, var(--foxfire) 7%, var(--surface));
+  color: color-mix(in oklab, var(--text) 88%, var(--muted));
+}
+.md blockquote > :last-child { margin-bottom: 0; }
+
+.md :not(pre) > code {
+  padding: .12em .38em;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--text) 8%, transparent);
+  font-size: .88em;
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────────── */
+
+.md .table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.md table { width: 100%; border-collapse: collapse; font-size: .94em; font-variant-numeric: tabular-nums; }
+.md th, .md td { padding: .55em .9em; text-align: left; vertical-align: top; border-bottom: 1px solid var(--border); }
+.md th { background: var(--surface); font-weight: 650; white-space: nowrap; }
+.md tbody tr:nth-child(even) { background: color-mix(in oklab, var(--text) 3%, transparent); }
+.md tbody tr:last-child td { border-bottom: 0; }
+.md th[style*="right"], .md td[style*="right"] { text-align: right; }
+.md th[style*="center"], .md td[style*="center"] { text-align: center; }
+
+/* ── Code blocks ─────────────────────────────────────────────────────────── */
+
+.md .code-block {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--code-bg);
+  overflow: hidden;
+}
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 6px 4px var(--space-4);
+  background: var(--code-header);
+  border-bottom: 1px solid var(--border);
+}
+.code-lang {
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  letter-spacing: .04em;
+  text-transform: lowercase;
+  color: var(--muted);
+}
+.code-copy {
+  padding: 3px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: .78rem;
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.code-copy:hover { color: var(--text); border-color: var(--border); }
+.code-copy.copied { color: var(--foxfire); border-color: var(--border-lit); }
+
+.md pre {
+  margin: 0;
+  padding: var(--space-4) var(--space-4) var(--space-4);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: .86rem;
+  line-height: 1.6;
+  tab-size: 4;
+  color: var(--code-text);
+}
+.md pre code { font-size: inherit; font-family: inherit; }
+
+/* Syntax colors (highlight.js classes), driven by theme tokens. */
+.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-section, .hljs-name { color: var(--code-keyword); }
+.hljs-string, .hljs-regexp, .hljs-addition, .hljs-symbol, .hljs-template-tag, .hljs-selector-attr { color: var(--code-string); }
+.hljs-number, .hljs-literal, .hljs-bullet, .hljs-link { color: var(--code-number); }
+.hljs-comment, .hljs-quote { color: var(--code-comment); font-style: italic; }
+.hljs-title, .hljs-title.function_, .hljs-selector-id, .hljs-selector-class { color: var(--code-function); }
+.hljs-type, .hljs-built_in, .hljs-title.class_, .hljs-class .hljs-title { color: var(--code-type); }
+.hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable.language_, .hljs-params { color: var(--code-attr); }
+.hljs-meta, .hljs-meta .hljs-keyword, .hljs-subst, .hljs-template-variable { color: var(--code-meta); }
+.hljs-deletion { color: var(--code-deletion); }
+.hljs-emphasis { font-style: italic; }
+.hljs-strong { font-weight: 700; }
+
+/* ── Math ────────────────────────────────────────────────────────────────── */
+
+.md .katex { font-size: 1.08em; }
+.md .math-block, .md .math-display { display: block; overflow-x: auto; overflow-y: hidden; padding: .15em 0; }
+.md .math-block .katex-display, .md .math-display .katex-display { margin: .4em 0; }
+.md .katex-error { color: var(--danger); font-family: var(--font-mono); font-size: .9em; }

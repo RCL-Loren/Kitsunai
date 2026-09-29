@@ -14,6 +14,19 @@
   --mascot-fur: #F3EDE1;
   --mascot-line: #1A1D30;
 
+  --code-bg: #0A0C15;
+  --code-header: #121526;
+  --code-text: #DCD7CB;
+  --code-keyword: #7AA2F7;
+  --code-string: #9ECE6A;
+  --code-number: #FF9E64;
+  --code-comment: #636A89;
+  --code-function: #7DCFFF;
+  --code-type: #E0AF68;
+  --code-attr: #73DACA;
+  --code-meta: #BB9AF7;
+  --code-deletion: #F7768E;
+
   --border: color-mix(in oklab, var(--text) 10%, transparent);
   --border-lit: color-mix(in oklab, var(--foxfire) 35%, transparent);
   --glow: 0 0 0 1px var(--border-lit), 0 0 18px color-mix(in oklab, var(--foxfire) 25%, transparent);
@@ -58,4 +71,17 @@
   --danger: #C8323F;
   --mascot-fur: #FFFFFF;
   --mascot-line: #1B1D2A;
+
+  --code-bg: #FBF7EF;
+  --code-header: #F1EADC;
+  --code-text: #2A2C3A;
+  --code-keyword: #3451B2;
+  --code-string: #3F7D20;
+  --code-number: #B5520E;
+  --code-comment: #8A8FA3;
+  --code-function: #0E7490;
+  --code-type: #8A5A00;
+  --code-attr: #0F766E;
+  --code-meta: #7C3AED;
+  --code-deletion: #C8323F;
 }

@@ -168,6 +168,9 @@ Some providers (OpenCode Go) send no CORS headers, so the browser cannot call th
   - This keeps "costs $5 and $10" as text.
   - Math inside code spans and fences is never touched (markdown-it handles this for free).
   - KaTeX output is cached in a `Map`, keyed as `(display?'D':'I')+src`, capped at about 2000 entries (clear oldest).
+  - `\[…\]` is treated as math, not as escaped brackets, because LLMs commonly write display math that way.
+  - ```` ```math ```` fences (GitHub style) render as display math.
+- Code uses no programming ligatures, so `=>` never renders as `⇒`. highlight.js adds latex, matlab, julia, verilog, vhdl, fortran and dockerfile to its common bundle.
 - User and assistant messages use the same `renderMarkdown`.
 
 ## 6. Streaming Renderer (core performance work)
@@ -297,7 +300,7 @@ Layout:
 - Below 800px the sidebar becomes an overlay drawer.
 
 Markdown CSS:
-- Tables scroll horizontally, with zebra rows and a sticky header.
+- Tables scroll horizontally, with zebra rows. (No sticky header: the horizontal scroll wrapper becomes the sticky container, so it can't stick to the page.)
 - `.katex-display` gets `overflow-x:auto`.
 - Code blocks have a header chip with a Copy button.
 - Blockquotes are styled like callouts.

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KitsunAI · Render fixture</title>
+  <script>document.documentElement.dataset.theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';</script>
+  <link rel="stylesheet" href="../vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="../css/tokens.css">
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="../css/markdown.css">
+  <script src="../vendor/markdown-it/markdown-it.min.js" defer></script>
+  <script src="../vendor/highlight/highlight.min.js" defer></script>
+  <script src="../vendor/katex/katex.min.js" defer></script>
+  <style>
+    body { padding: var(--space-5) var(--space-4); }
+    .fixture { max-width: var(--content-width); margin: 0 auto; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-bottom: var(--space-5); position: sticky; top: 0; padding: var(--space-2) 0; background: var(--bg); z-index: 1; }
+    .timing { margin-left: auto; color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+  <main class="fixture">
+    <div class="toolbar">
+      <button class="btn" id="theme">Toggle theme</button>
+      <button class="btn" id="hl" aria-pressed="true">Highlighting: on</button>
+      <span class="timing" id="timing"></span>
+    </div>
+    <article class="md" id="out"></article>
+  </main>
+
+  <script type="text/plain" id="fixture">
+# Render fixture
+
+Every construct KitsunAI must render. Paragraphs carry **bold**, *italic*, ~~strikethrough~~, `inline code`, a [link](https://obsidian.md), and a bare URL: https://katex.org.
+
+## Mathematics
+
+Inline mathematics: $E=mc^2$, \(a^2 + b^2 = c^2\), and where $\zeta$ is the damping ratio.
+
+The transfer function is
+
+$$
+H(s)=\frac{\omega_0^2}
+{s^2+2\zeta\omega_0s+\omega_0^2}
+$$
+
+Bracket form:
+
+\[
+r_L = \frac{m_e v_\perp}{eB}
+\]
+
+Single-line display: $$\oint_C \mathbf{B}\cdot d\boldsymbol{\ell} = \mu_0 I_{\text{enc}}$$
+
+A GitHub-style math fence:
+
+```math
+\nabla \times \mathbf{E} = -\frac{\partial \mathbf{B}}{\partial t}
+```
+
+A long equation should scroll, not overflow:
+
+$$
+\mathcal{L} = -\frac{1}{4}F_{\mu\nu}F^{\mu\nu} + \bar\psi(i\gamma^\mu D_\mu - m)\psi + |D_\mu\phi|^2 - V(\phi) + \bar\psi_i y_{ij}\psi_j\phi + \text{h.c.} + \sum_{k=1}^{N} \alpha_k \mathcal{O}_k
+$$
+
+Prices are not math: the kit costs $5 and the manual $10. Escaped: \$x\$.
+
+Broken TeX shows an error, not a crash: $\frac{a$.
+
+## Lists
+
+1. Poles sit at $s = -\zeta\omega_0 \pm j\omega_0\sqrt{1-\zeta^2}$.
+2. Overshoot depends only on $\zeta$.
+   - Lower damping means more ringing.
+   - Nested items keep their markers.
+3. Settling time scales as $4/(\zeta\omega_0)$.
+
+- A loose list item
+
+  with a second paragraph and display math:
+
+  $$
+  f_c = \frac{eB}{2\pi m_e}
+  $$
+
+- Another item
+
+## Table
+
+| Regime | Condition | Poles | Overshoot |
+|:---|:---:|:---|---:|
+| Underdamped | $\zeta < 1$ | complex pair | $e^{-\pi\zeta/\sqrt{1-\zeta^2}}$ |
+| Critical | $\zeta = 1$ | repeated real | 0 |
+| Overdamped | $\zeta > 1$ | two real | 0 |
+
+| A | very | wide | table | with | many | columns | that | should | scroll | horizontally | rather | than | overflow |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 |
+
+## Code
+
+```python
+import numpy as np
+from scipy import signal
+
+w0, zeta = 2 * np.pi, 0.3  # natural frequency, damping
+sys = signal.TransferFunction([w0**2], [1, 2 * zeta * w0, w0**2])
+t, y = signal.step(sys)
+print(f"overshoot: {y.max() - 1:.3f}")
+```
+
+```js
+const larmorRadius = (v, B) => (9.109e-31 * v) / (1.602e-19 * B);
+export default async function main() { return larmorRadius(1e6, 0.1); }
+```
+
+```rust
+fn main() {
+    let omega: f64 = 2.0 * std::f64::consts::PI;
+    println!("ω = {omega:.3}");
+}
+```
+
+```verilog
+module counter(input clk, input rst, output reg [7:0] q);
+  always @(posedge clk) q <= rst ? 8'd0 : q + 1;
+endmodule
+```
+
+```latex
+\begin{equation}
+  \hat{H}\psi = E\psi
+\end{equation}
+```
+
+```
+No language: shown as plain text, never auto-detected.
+```
+
+    Indented code block (four spaces).
+
+```unknownlang
+<escaped> & shown as text
+```
+
+## Quotes & rules
+
+> **Note.** Blockquotes read like callouts, with $inline$ math and `code`.
+>
+> Second paragraph.
+
+---
+
+Raw HTML is escaped: <img src=x onerror="alert('nope')"> <b>not bold</b>.
+  </script>
+
+  <script type="module">
+    import { renderMarkdown } from '../js/render/markdown.js';
+    import { attachCodeCopy } from '../js/render/code-blocks.js';
+
+    const src = document.getElementById('fixture').textContent.replace(/^\n/, '');
+    const out = document.getElementById('out');
+    let highlight = true;
+
+    function draw() {
+      const t0 = performance.now();
+      out.innerHTML = renderMarkdown(src, { highlight });
+      const ms = performance.now() - t0;
+      document.getElementById('timing').textContent = `${src.length.toLocaleString()} chars · rendered in ${ms.toFixed(1)} ms`;
+    }
+
+    document.getElementById('theme').onclick = () => {
+      const root = document.documentElement;
+      root.dataset.theme = root.dataset.theme === 'dark' ? 'light' : 'dark';
+    };
+    document.getElementById('hl').onclick = (e) => {
+      highlight = !highlight;
+      e.target.textContent = `Highlighting: ${highlight ? 'on' : 'off'}`;
+      e.target.setAttribute('aria-pressed', String(highlight));
+      draw();
+    };
+    attachCodeCopy(out);
+    draw();
+  </script>
+</body>
+</html>
