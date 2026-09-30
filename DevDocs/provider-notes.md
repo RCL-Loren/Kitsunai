@@ -70,3 +70,10 @@ Without a session ID, requests fail with `400 MissingSessionID` ("Request is mis
 - Send "typical coding agent traffic". KitsunAI is a general chat client, so whether this use fits OpenCode Go's terms is the user's call.
 
 The session header is only sent for the OpenCode Go preset. A custom header on direct browser calls would trigger CORS preflights that other providers may reject.
+
+## API formats per model (2026-09-30)
+
+- GPT Luna fails on Chat Completions with `400: Model does not support this protocol.` The authoritative per-model mapping is models.dev (`https://models.dev/api.json`, provider `opencode-go`): a model's `provider.npm` of `@ai-sdk/openai` means Responses, `@ai-sdk/anthropic` means Anthropic Messages, and no override means Chat Completions. Family names don't predict it (qwen3.8-max uses Chat Completions, qwen3.8-flash uses Messages).
+- Mismatch wording: Chat Completions says "Model does not support this protocol." Responses says "Model X is not supported for format openai" (a `ModelError`, sometimes returned before the key check).
+- `/messages` requires `x-api-key`; a Bearer header is reported as "Missing API key."
+- KitsunAI detects the format with test requests (plan §4b) rather than downloading models.dev, which is 5 MB, can lag new models, and only covers catalogued providers.

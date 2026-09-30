@@ -13,7 +13,9 @@ test('normalizeModel trims, fills defaults, and drops empty parameters', () => {
   assert.equal(m.endpoint, 'https://opencode.ai/zen/go/v1');
   assert.equal(m.credentials.apiKey, 'sk-1');
   assert.equal(m.useProxy, true);
-  assert.equal(m.provider, 'openai-compatible');
+  assert.equal(m.apiFormat, 'chat', 'defaults to Chat Completions');
+  assert.equal(normalizeModel({ apiFormat: 'responses' }).apiFormat, 'responses');
+  assert.equal(normalizeModel({ apiFormat: 'bogus' }).apiFormat, 'chat');
   assert.deepEqual(m.parameters, { temperature: 0.7 });
   assert.match(m.id, /^[0-9a-f-]{36}$/);
 });

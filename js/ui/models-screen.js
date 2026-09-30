@@ -4,7 +4,7 @@ import { renderSetupComplete } from './home.js';
 import { on } from '../events.js';
 import { listModels, getModel, saveModel, deleteModel, normalizeModel, validateModel } from '../data/models.js';
 import { countConversationsForModel } from '../data/conversations.js';
-import { PRESETS, presetFor, adapterFor, getStatus, setStatus, testModel, requestHeaders } from '../providers/index.js';
+import { PRESETS, API_FORMATS, presetFor, formatLabel, adapterFor, getStatus, setStatus, testModel, detectFormat } from '../providers/index.js';
 
 const STATUS_LABEL = { unverified: 'Not tested', testing: 'Testing…', ready: 'Ready', error: 'Error' };
 
@@ -30,7 +30,7 @@ export async function renderModelsList(main) {
               <li class="card model-card" data-id="${m.id}">
                 <div class="model-card-main">
                   <a class="model-card-name" href="#/models/${m.id}"><span class="sparkle" aria-hidden="true">✦</span> ${m.name}</a>
-                  <div class="model-card-meta">${presetFor(m.preset).label} · <code>${m.model}</code>${m.useProxy ? ' · via relay' : ''}</div>
+                  <div class="model-card-meta">${presetFor(m.preset).label} · <code>${m.model}</code>${(m.apiFormat ?? 'chat') !== 'chat' ? ` · ${formatLabel(m.apiFormat)} API` : ''}${m.useProxy ? ' · via relay' : ''}</div>
                   <div class="model-card-status">${statusBadge(m.id)}</div>
                 </div>
                 <div class="model-card-actions">
@@ -47,6 +47,11 @@ export async function renderModelsList(main) {
         const model = models.find((m) => m.id === button.closest('[data-id]').dataset.id);
         const status = await testModel(model);
         if (status.state === 'error') toast(status.message, { kind: 'error', duration: 6000 });
+        if (status.format && status.format !== (model.apiFormat ?? 'chat')) {
+          await saveModel({ ...model, apiFormat: status.format }); // redraws the list
+          setStatus(model.id, { state: 'ready', message: status.message });
+          toast(`${model.name} uses the ${formatLabel(status.format)} API — saved.`);
+        }
       });
     }
   }
@@ -114,6 +119,10 @@ export async function renderModelForm(main, { id, setup = false } = {}) {
               <button class="btn btn-ghost" type="button" data-action="fetch-models">Fetch models</button>
             </div>
             <datalist id="model-ids"></datalist>`)}
+          ${field('apiFormat', 'API format', html`
+            <select id="f-apiFormat" name="apiFormat">
+              ${API_FORMATS.map((f) => html`<option value="${f.id}" ${f.id === (m.apiFormat ?? 'chat') ? 'selected' : ''}>${f.label}</option>`)}
+            </select>`, 'Test connection detects this automatically.')}
           ${field('name', 'Display name', html`<input id="f-name" name="name" value="${m.name}" placeholder="Defaults to the model identifier" autocomplete="off">`)}
           <label class="checkbox">
             <input type="checkbox" name="useProxy" ${m.useProxy ? 'checked' : ''}>
@@ -188,6 +197,7 @@ export async function renderModelForm(main, { id, setup = false } = {}) {
     const model = normalizeModel({
       id: existing?.id,
       preset: data.get('preset'),
+      apiFormat: data.get('apiFormat'),
       name: data.get('name'),
       endpoint: data.get('endpoint'),
       model: data.get('model'),
@@ -245,10 +255,13 @@ export async function renderModelForm(main, { id, setup = false } = {}) {
           form.elements.model.focus();
         } else {
           showStatus('pending', 'Testing connection…');
-          const message = await adapterFor(model).test(model, { headers: requestHeaders(model, crypto.randomUUID()) });
-          lastTest = { snapshot: snapshot(model), ok: true, message };
-          if (existing) setStatus(existing.id, { state: 'ready', message });
-          showStatus('ok', message);
+          const { format, message } = await detectFormat(model);
+          const detected = format !== model.apiFormat;
+          if (detected) form.elements.apiFormat.value = format;
+          const note = detected ? `${message} This model uses the ${formatLabel(format)} API — the API format has been updated${existing ? '; save to keep it' : ''}.` : message;
+          lastTest = { snapshot: snapshot({ ...model, apiFormat: format }), ok: true, message: note };
+          if (existing && !detected) setStatus(existing.id, { state: 'ready', message });
+          showStatus('ok', note);
         }
       } catch (err) {
         if (action === 'test' && existing) setStatus(existing.id, { state: 'error', message: err.message });

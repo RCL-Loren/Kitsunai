@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listModels, test as testConnection, send, stream, buildChatBody, chunkEvents } from '../js/providers/openai.js';
+import { test as testConnection, stream, buildChatBody, chunkEvents } from '../js/providers/openai.js';
+import { listModels, send } from '../js/providers/http.js';
 import { providerFetch } from '../js/providers/transport.js';
 import { httpErrorMessage, extractErrorDetail } from '../js/providers/errors.js';
 

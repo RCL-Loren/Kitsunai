@@ -1,57 +1,8 @@
 // OpenAI-compatible Chat Completions adapter (OpenCode Go, llama.cpp, Ollama,
 // LM Studio, OpenRouter, ...).
 
-import { providerFetch, RELAY_MARKER } from './transport.js';
-import { ProviderError, httpErrorMessage, extractErrorDetail } from './errors.js';
-import { createSSEParser } from './sse.js';
-
-const hostOf = (endpoint) => {
-  try { return new URL(endpoint).host; } catch { return endpoint; }
-};
-
-export function buildHeaders(model, extra = {}) {
-  const headers = { ...extra };
-  if (model.credentials?.apiKey) headers.authorization = `Bearer ${model.credentials.apiKey}`;
-  return headers;
-}
-
-// Sends a request and turns every failure mode into a ProviderError with a
-// message fit for the UI. AbortErrors pass through untouched.
-export async function send(model, path, init = {}, fetchImpl) {
-  const url = model.endpoint.replace(/\/+$/, '') + path;
-  let res;
-  try {
-    res = await providerFetch(model, url, { ...init, headers: buildHeaders(model, init.headers) }, fetchImpl);
-  } catch (err) {
-    if (err.name === 'AbortError') throw err;
-    throw new ProviderError(
-      model.useProxy
-        ? 'Couldn’t reach the local relay. Start KitsunAI with “node tools/serve.js”.'
-        : `Couldn’t reach ${hostOf(model.endpoint)}. The server may be offline, or it may not allow browser requests — try turning on “Use local relay”.`,
-      { kind: 'network' },
-    );
-  }
-  if (model.useProxy && !res.headers.get(RELAY_MARKER)) {
-    throw new ProviderError('The local relay isn’t running. Start KitsunAI with “node tools/serve.js”.', { kind: 'relay-missing', status: res.status });
-  }
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    const relayError = res.headers.get('x-kitsunai-relay-error');
-    throw new ProviderError(relayError ? extractErrorDetail(body) : httpErrorMessage(res.status, body), {
-      kind: relayError ? 'relay' : 'http',
-      status: res.status,
-      body,
-    });
-  }
-  return res;
-}
-
-export async function listModels(model, { signal, fetchImpl } = {}) {
-  const res = await send(model, '/models', { method: 'GET', signal }, fetchImpl);
-  const json = await res.json().catch(() => null);
-  if (!Array.isArray(json?.data)) throw new ProviderError('The /models response was not in the expected format.', { kind: 'protocol' });
-  return json.data.map((m) => m.id).filter(Boolean).sort();
-}
+import { ProviderError } from './errors.js';
+import { send, listModels, mergeExtra, readSSE, parseJSON, isJSONResponse } from './http.js';
 
 // Resolves with a short success message, or throws ProviderError.
 // A 1-token completion is the only check that proves endpoint, key and model
@@ -66,8 +17,7 @@ export async function test(model, { signal, fetchImpl, headers = {} } = {}) {
   return 'Connected — the model answered.';
 }
 
-// Pure: the Chat Completions request body. Extra JSON is merged last so users
-// can override anything (e.g. "stream_options": null for picky servers).
+// Pure: the Chat Completions request body.
 export function buildChatBody(model, messages) {
   const { temperature, top_p, max_tokens, extra } = model.parameters ?? {};
   const body = {
@@ -79,11 +29,7 @@ export function buildChatBody(model, messages) {
   if (temperature !== undefined) body.temperature = temperature;
   if (top_p !== undefined) body.top_p = top_p;
   if (max_tokens !== undefined) body.max_tokens = max_tokens;
-  for (const [k, v] of Object.entries(extra ?? {})) {
-    if (v === null) delete body[k];
-    else body[k] = v;
-  }
-  return body;
+  return mergeExtra(body, extra);
 }
 
 // Pure: maps one parsed chunk to adapter events.
@@ -116,44 +62,15 @@ export async function* stream(model, { messages, signal, fetchImpl, headers = {}
   }, fetchImpl);
 
   // Some servers ignore stream:true and answer with one JSON document.
-  if (/application\/json/.test(res.headers.get('content-type') ?? '')) {
+  if (isJSONResponse(res)) {
     yield* chunkEvents(await res.json());
     return;
   }
-
-  let queue = [];
-  let done = false;
-  const parser = createSSEParser(({ data }) => {
-    if (done) return;
-    if (data.trim() === '[DONE]') { done = true; return; }
-    let json;
-    try {
-      json = JSON.parse(data);
-    } catch {
-      return; // ignore non-JSON keep-alives some proxies inject
-    }
-    queue.push(...chunkEvents(json));
+  yield* readSSE(res, signal, ({ data }) => {
+    if (data.trim() === '[DONE]') return null;
+    const json = parseJSON(data);
+    return json === undefined ? [] : chunkEvents(json);
   });
-
-  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
-  try {
-    while (!done) {
-      let result;
-      try {
-        result = await reader.read();
-      } catch (err) {
-        if (err.name === 'AbortError' || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-        throw new ProviderError('The connection dropped before the response finished.', { kind: 'network' });
-      }
-      if (result.done) { parser.end(); done = true; }
-      else parser.push(result.value);
-      const events = queue;
-      queue = [];
-      yield* events;
-    }
-  } finally {
-    reader.cancel().catch(() => {});
-  }
 }
 
-export const openai = { id: 'openai-compatible', label: 'OpenAI-compatible', listModels, test, stream };
+export const chat = { id: 'chat', label: 'Chat Completions', listModels, test, stream };

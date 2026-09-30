@@ -18,11 +18,11 @@ Serve with `tools/serve.js`, not another static server: it also provides the **l
 
 ## Models and providers
 
-KitsunAI speaks the **OpenAI-compatible Chat Completions** API with streaming. Presets fill in the endpoint:
+KitsunAI streams from three API formats: **Chat Completions** (OpenAI-compatible), **Responses** (OpenAI) and **Anthropic Messages**. Each model stores its format, and **Test connection** detects it automatically; you can also set it by hand. Presets fill in the endpoint:
 
 | Preset | Endpoint | Notes |
 |---|---|---|
-| OpenCode Go | `https://opencode.ai/zen/go/v1` | Needs an API key and the local relay. Only Chat Completions models work (GLM, Kimi, DeepSeek, LongCat, Hy, Space Bunny); Qwen, MiniMax, Grok and GPT models use other API formats. KitsunAI sends the per-conversation `x-opencode-session` header OpenCode Go requires. Its docs describe the service as intended for coding-agent traffic. |
+| OpenCode Go | `https://opencode.ai/zen/go/v1` | Needs an API key and the local relay. Models use different API formats (e.g. GPT Luna and Grok use Responses, MiniMax uses Anthropic Messages); Test connection detects each one. KitsunAI sends the per-conversation `x-opencode-session` header OpenCode Go requires. Its docs describe the service as intended for coding-agent traffic. |
 | llama.cpp | `http://localhost:8080/v1` | `llama-server` |
 | Ollama | `http://localhost:11434/v1` | |
 | LM Studio | `http://localhost:1234/v1` | |
@@ -69,6 +69,7 @@ Add a **Custom** model with endpoint `http://127.0.0.1:8090/v1` and model `mock-
 | `--empty` | answer with no content |
 | `--fail http`, `--fail 401`, `--fail 429`, … | fail with that HTTP status |
 | `--fail mid` | drop the connection halfway through |
+| `--formats chat,responses,messages` | API formats to accept (default: all). Others get OpenCode Go's "not supported" errors, for testing format detection. |
 
 Dev pages:
 - `dev/render.html` shows every Markdown construct.
@@ -94,7 +95,7 @@ index.html            app shell
 css/                  tokens (themes), base, layout, components, markdown, chat, motion
 js/main.js            boot, hash router
 js/data/              IndexedDB-backed conversations, messages, models, settings
-js/providers/         OpenAI-compatible adapter, SSE parser, transport (direct or relay)
+js/providers/         API-format adapters (chat, responses, messages), shared HTTP/SSE, transport (direct or relay), format detection
 js/chat/session.js    send / stream / stop / retry / persist
 js/render/            Markdown pipeline, math plugin, streaming renderer
 js/export/            Markdown export (pure) and clipboard/download actions
@@ -108,7 +109,6 @@ How streaming stays fast: finished blocks of a reply are rendered once and never
 
 ## Known limitations (V1)
 
-- Only the OpenAI-compatible Chat Completions format is supported. There are no Anthropic Messages or Responses adapters yet.
 - No attachments, search, sync, message editing or branching.
 - Code blocks over 32 KB are shown without syntax highlighting.
 - A single extremely large reply (about 200 KB, with thousands of formulas) takes about half a second to reopen.

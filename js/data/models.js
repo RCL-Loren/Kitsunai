@@ -2,6 +2,7 @@ import { get, getAll, put, remove } from '../db.js';
 import { emit } from '../events.js';
 
 const PARAM_NUMBERS = ['temperature', 'top_p', 'max_tokens'];
+export const API_FORMAT_IDS = ['chat', 'responses', 'messages'];
 
 const toNumber = (v) => (v === '' || v === null || v === undefined ? undefined : Number(v));
 
@@ -19,7 +20,9 @@ export function normalizeModel(input) {
   return {
     id: input.id || crypto.randomUUID(),
     name: (input.name ?? '').trim() || model,
-    provider: input.provider || 'openai-compatible',
+    // Which API the endpoint speaks for this model; picks the adapter.
+    // (Replaces the V1 `provider` field, which was always "openai-compatible".)
+    apiFormat: API_FORMAT_IDS.includes(input.apiFormat) ? input.apiFormat : 'chat',
     preset: input.preset || 'custom',
     endpoint: (input.endpoint ?? '').trim().replace(/\/+$/, ''),
     model,
