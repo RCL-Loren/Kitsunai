@@ -26,3 +26,4 @@ replay_pid*
 # KitsunAI
 .DS_Store
 node_modules/
+.obsidian/
