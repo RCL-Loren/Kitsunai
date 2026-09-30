@@ -68,14 +68,14 @@ Pure modules must not touch `window` or `document`, so `node:test` can import th
 |---|---|---|---|
 | `conversations` | `id` | `updatedAt` | `id, title, modelId, modelName, createdAt, updatedAt` |
 | `messages` | `id` | `byConversation: [conversationId, createdAt]` | `id, conversationId, role, markdown, createdAt, metadata` |
-| `models` | `id` | — | `id, name, provider, preset, endpoint, model, credentials, useProxy, systemPrompt, parameters` |
+| `models` | `id` | — | `id, name, apiFormat, preset, endpoint, model, credentials, useProxy, systemPrompt, parameters` |
 | `settings` | `key` | — | `{key, value}` rows |
 
 Fields:
 - `modelName` is a snapshot, so exports and orphaned conversations still name the model.
 - `role` is `user` or `assistant`.
 - `metadata` holds `{status:'complete'|'stopped', reasoning?, usage?, finishReason?}`.
-- `provider` is `'openai-compatible'`.
+- `apiFormat` is `'chat'` (Chat Completions), `'responses'` (OpenAI Responses) or `'messages'` (Anthropic Messages), and picks the adapter. It replaced the V1 `provider` field; records without it are treated as `'chat'`. Test connection detects it (§4b).
 - `credentials` is `{apiKey}`.
 - `useProxy` (bool) routes the model's requests through the local relay. Presets set the default (OpenCode Go: on, local servers: off).
 - `parameters` is `{temperature?, top_p?, max_tokens?, extra?}`, where `extra` is raw JSON merged into the request body.
@@ -150,6 +150,20 @@ Some providers (OpenCode Go) send no CORS headers, so the browser cannot call th
   - never logs request bodies or `Authorization`
 - Browser side: `providers/transport.js` exports `providerFetch(model, url, init, fetchImpl)`. When `model.useProxy` is set, it rewrites the call to `/relay` with the upstream header. Adapters always call it, never `fetch` directly.
 - A future Tauri or Electron shell can replace the relay by swapping `providerFetch`. Nothing else changes.
+
+## 4b. API Formats (added after V1)
+
+Some providers serve a model through only one API format. OpenCode Go, for example, serves GPT Luna, Grok and Muse Spark through Responses only, and some MiniMax and Qwen models through Anthropic Messages only. Model names don't predict this reliably (qwen3.8-max uses Chat Completions while qwen3.8-flash uses Messages), so the format is stored per model.
+
+- **Adapters:** `providers/openai.js` (Chat Completions), `responses.js` and `messages.js` share `providers/http.js` (transport, errors, SSE reading, extra-JSON merge).
+  - Messages authenticates with `x-api-key` plus `anthropic-version`, and needs `max_tokens` (default 8192).
+  - Responses puts the system prompt in `instructions` and the length limit in `max_output_tokens`.
+- **Detection** (`detectFormat`): a tiny test request in each format, starting with the current one.
+  - It moves on only for "wrong format" errors: the provider's own wording (`does not support this protocol`, `not supported for format …`) or a missing endpoint (404/405). Any other error, such as a bad key, stops it.
+- **Where detection runs:**
+  - **Test connection** in the form updates the select. The list's **Test** button saves the detected format.
+  - **Save** runs detection whenever the connection details (endpoint, model ID, key, relay, format) are new or changed and weren't just tested. A failed check still saves, with a warning (offline, key to be fixed later). Renaming alone makes no requests.
+  - **Chat self-correction:** if a reply fails with a wrong-format error before any text arrives, the session detects the format, saves it on the model, shows a toast and retries once in the same reply. This covers models saved before detection existed and providers that change a model's format. If detection fails, the original error stands, and it says to run Test connection.
 
 ## 5. Markdown Pipeline
 
