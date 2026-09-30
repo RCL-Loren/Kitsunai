@@ -18,7 +18,7 @@ Serve with `tools/serve.js`, not another static server: it also provides the **l
 
 ## Models and providers
 
-KitsunAI streams from three API formats: **Chat Completions** (OpenAI-compatible), **Responses** (OpenAI) and **Anthropic Messages**. Each model stores its format, and **Test connection** detects it automatically; you can also set it by hand. Presets fill in the endpoint:
+KitsunAI streams from three API formats: **Chat Completions** (OpenAI-compatible), **Responses** (OpenAI) and **Anthropic Messages**. Each model stores its format. KitsunAI detects it when you save or test a model, and corrects it automatically if a chat hits the wrong one. You can also set it by hand. Presets fill in the endpoint:
 
 | Preset | Endpoint | Notes |
 |---|---|---|

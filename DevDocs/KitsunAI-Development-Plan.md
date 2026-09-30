@@ -160,8 +160,10 @@ Some providers serve a model through only one API format. OpenCode Go, for examp
   - Responses puts the system prompt in `instructions` and the length limit in `max_output_tokens`.
 - **Detection** (`detectFormat`): a tiny test request in each format, starting with the current one.
   - It moves on only for "wrong format" errors: the provider's own wording (`does not support this protocol`, `not supported for format …`) or a missing endpoint (404/405). Any other error, such as a bad key, stops it.
-  - The form updates its select. The list's Test button saves the detected format.
-- **Chat-time errors:** if a chat hits the wrong format, the error says to run Test connection.
+- **Where detection runs:**
+  - **Test connection** in the form updates the select. The list's **Test** button saves the detected format.
+  - **Save** runs detection whenever the connection details (endpoint, model ID, key, relay, format) are new or changed and weren't just tested. A failed check still saves, with a warning (offline, key to be fixed later). Renaming alone makes no requests.
+  - **Chat self-correction:** if a reply fails with a wrong-format error before any text arrives, the session detects the format, saves it on the model, shows a toast and retries once in the same reply. This covers models saved before detection existed and providers that change a model's format. If detection fails, the original error stands, and it says to run Test connection.
 
 ## 5. Markdown Pipeline
 

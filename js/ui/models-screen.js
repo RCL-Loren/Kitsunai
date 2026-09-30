@@ -293,21 +293,52 @@ export async function renderModelForm(main, { id, setup = false } = {}) {
     }
   });
 
+  // Save checks the connection (and detects the API format) whenever the
+  // connection details are new or changed and weren't just tested, so a model
+  // is never saved with the wrong format unnoticed. A failed check doesn't block
+  // saving (you may be offline, or fixing the key later); it's reported instead.
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearErrors();
     const { model, errors } = readForm();
     if (Object.keys(errors).length) return showErrors(errors);
-    const saved = await saveModel(model);
-    if (lastTest?.ok && lastTest.snapshot === snapshot(saved)) setStatus(saved.id, { state: 'ready', message: lastTest.message });
-    else if (existing && snapshot(existing) !== snapshot(saved)) setStatus(saved.id, { state: 'unverified' });
 
-    if (setup) {
-      renderSetupComplete(main, saved);
-    } else {
-      toast(`Saved ${saved.name}`);
-      location.hash = '#/models';
+    const justTested = lastTest?.ok && lastTest.snapshot === snapshot(model);
+    const connectionChanged = !existing || snapshot(existing) !== snapshot(model);
+    let status = justTested ? { state: 'ready', message: lastTest.message } : null;
+    let warning = null;
+    let switchedTo = null;
+
+    if (!justTested && connectionChanged) {
+      const buttons = $$('button', form);
+      buttons.forEach((b) => { b.disabled = true; });
+      showStatus('pending', 'Checking the connection and API format…');
+      try {
+        const { format, message } = await detectFormat(model);
+        if (format !== model.apiFormat) {
+          switchedTo = format;
+          model.apiFormat = format;
+          form.elements.apiFormat.value = format;
+        }
+        status = { state: 'ready', message };
+      } catch (err) {
+        status = { state: 'error', message: err.message };
+        warning = err.message;
+      } finally {
+        buttons.forEach((b) => { b.disabled = false; });
+      }
     }
+
+    const saved = await saveModel(model);
+    if (status) setStatus(saved.id, status);
+    else if (connectionChanged) setStatus(saved.id, { state: 'unverified' });
+
+    if (warning) toast(`Saved ${saved.name}, but the connection check failed: ${warning}`, { kind: 'error', duration: 8000 });
+    else if (switchedTo) toast(`Saved ${saved.name} — it uses the ${formatLabel(switchedTo)} API.`);
+    else if (!setup) toast(`Saved ${saved.name}`);
+
+    if (setup) renderSetupComplete(main, saved);
+    else location.hash = '#/models';
   });
 
   (existing ? form.elements.name : form.elements.model).focus();

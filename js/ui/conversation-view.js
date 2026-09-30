@@ -9,7 +9,7 @@ import { getConversation } from '../data/conversations.js';
 import { listMessages } from '../data/messages.js';
 import { getModel } from '../data/models.js';
 import { getSettings } from '../data/settings.js';
-import { presetFor } from '../providers/index.js';
+import { presetFor, formatLabel } from '../providers/index.js';
 import { createChatSession } from '../chat/session.js';
 import { createStreamRenderer } from '../render/stream-renderer.js';
 import { recordPaint } from '../dev/perf.js';
@@ -209,6 +209,10 @@ export async function renderConversation(main, { id, modelId }) {
         title.textContent = conv.title;
         exportButton.disabled = false;
         emit('route:replaced');
+      },
+      onFormatChanged(updated) {
+        toast(`${updated.name} uses the ${formatLabel(updated.apiFormat)} API — switched and retrying.`);
+        $('.model-chip', main).title = `${presetFor(updated.preset).label} · ${updated.model} · ${formatLabel(updated.apiFormat)} API`;
       },
       onUserMessage(message) {
         $('.chat-empty', log)?.remove();
