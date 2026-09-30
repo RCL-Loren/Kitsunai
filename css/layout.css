@@ -22,7 +22,10 @@
   margin: 0;
   font-size: 1.35rem;
 }
-a.brand { color: var(--text); text-decoration: none; }
+a.brand, .brand-link { color: var(--text); text-decoration: none; }
+.brand-link { display: inline-flex; align-items: center; gap: var(--space-2); border-radius: var(--radius-sm); }
+.brand-link .brand-mark, a.brand .brand-mark { transition: filter var(--dur) var(--ease); }
+.brand-link:hover .brand-mark, a.brand:hover .brand-mark { filter: drop-shadow(0 0 6px color-mix(in oklab, var(--foxfire-deco) 55%, transparent)); }
 .brand-mark { display: block; border-radius: 7px; }
 
 .conversation-list { flex: 1; min-height: 0; overflow: hidden auto; margin: 0 calc(-1 * var(--space-2)); }

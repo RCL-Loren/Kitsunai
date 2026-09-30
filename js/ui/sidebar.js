@@ -6,7 +6,7 @@ import { toast } from './toast.js';
 
 export function renderSidebar(el) {
   el.innerHTML = html`
-    <h1 class="brand display"><img class="brand-mark" src="assets/icon.svg" width="28" height="28" alt=""> KitsunAI</h1>
+    <h1 class="brand display"><a class="brand-link" href="#/" aria-label="KitsunAI home"><img class="brand-mark" src="assets/icon.svg" width="28" height="28" alt=""> KitsunAI</a></h1>
     <a class="btn btn-primary btn-block" href="#/new" data-nav="new">New chat</a>
     <nav class="conversation-list" aria-label="Conversations"></nav>
     <div class="sidebar-footer">
