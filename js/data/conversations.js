@@ -35,13 +35,15 @@ export async function updateConversation(id, changes) {
   return updated;
 }
 
-// Deletes the conversation and all of its messages atomically.
+// Deletes the conversation and all of its messages and images atomically.
 export async function deleteConversation(id) {
-  await transaction(['conversations', 'messages'], 'readwrite', async (tx) => {
+  await transaction(['conversations', 'messages', 'attachments'], 'readwrite', async (tx) => {
     tx.objectStore('conversations').delete(id);
     const range = IDBKeyRange.bound([id, -Infinity], [id, Infinity]);
     const keys = await promisify(tx.objectStore('messages').index('byConversation').getAllKeys(range));
     for (const key of keys) tx.objectStore('messages').delete(key);
+    const images = await promisify(tx.objectStore('attachments').index('conversationId').getAllKeys(IDBKeyRange.only(id)));
+    for (const key of images) tx.objectStore('attachments').delete(key);
   });
   emit('conversations:changed', { id, deleted: true });
 }

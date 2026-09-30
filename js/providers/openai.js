@@ -17,12 +17,21 @@ export async function test(model, { signal, fetchImpl, headers = {} } = {}) {
   return 'Connected — the model answered.';
 }
 
+// Pure: a message with images becomes a content array of text + image_url parts.
+export function chatMessage({ role, content, images }) {
+  if (!images?.length) return { role, content };
+  const parts = content ? [{ type: 'text', text: content }] : [];
+  for (const img of images) parts.push({ type: 'image_url', image_url: { url: img.dataUrl } });
+  return { role, content: parts };
+}
+
 // Pure: the Chat Completions request body.
 export function buildChatBody(model, messages) {
   const { temperature, top_p, max_tokens, extra } = model.parameters ?? {};
+  const turns = messages.map(chatMessage);
   const body = {
     model: model.model,
-    messages: model.systemPrompt ? [{ role: 'system', content: model.systemPrompt }, ...messages] : messages,
+    messages: model.systemPrompt ? [{ role: 'system', content: model.systemPrompt }, ...turns] : turns,
     stream: true,
     stream_options: { include_usage: true },
   };

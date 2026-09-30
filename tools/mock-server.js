@@ -5,7 +5,7 @@
 //
 //   node tools/mock-server.js [--port 8090] [--tps 60] [--latency 400]
 //                             [--fail http|mid|<status>] [--reasoning] [--repeat 1]
-//                             [--empty] [--code-lines N] [--formats chat,responses,messages]
+//                             [--empty] [--code-lines N] [--formats chat,responses,messages] [--no-vision]
 //
 // --tps         tokens per second (a "token" here is ~4 characters)
 // --latency     ms before the first token
@@ -16,6 +16,7 @@
 // --repeat      repeat the canned response N times (for long-message tests)
 // --empty       stream a response with no content
 // --code-lines  answer with one fenced code block of N lines (large-block tests)
+// --no-vision   reject requests containing images (as a text-only model would)
 // --formats     API formats to accept (default all). Others get OpenCode Go's
 //               "not supported" errors, for testing format detection. Paths:
 //               /v1/chat/completions, /v1/responses, /v1/messages
@@ -88,10 +89,10 @@ const REASONING =
   'Let me recall the standard second-order form, then check the pole locations and the regime table before answering.';
 
 function parseArgs(argv) {
-  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1, empty: false, 'code-lines': 0, formats: 'chat,responses,messages' };
+  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1, empty: false, 'code-lines': 0, formats: 'chat,responses,messages', 'no-vision': false };
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i].replace(/^--/, '');
-    if (key === 'reasoning' || key === 'empty') opts[key] = true;
+    if (key === 'reasoning' || key === 'empty' || key === 'no-vision') opts[key] = true;
     else if (key in opts) opts[key] = isNaN(+argv[i + 1]) ? argv[++i] : +argv[++i];
   }
   return opts;
@@ -109,6 +110,25 @@ const CORS = {
   'access-control-allow-headers': 'authorization, content-type, x-api-key, anthropic-version',
   'access-control-allow-methods': 'GET, POST, OPTIONS',
 };
+
+// Pure: images in a request, in any format: [{ mime, bytes }] (bytes of the base64 payload).
+export function requestImages(format, body) {
+  const turns = format === 'responses' ? (Array.isArray(body.input) ? body.input : []) : (body.messages ?? []);
+  const images = [];
+  const fromDataUrl = (url) => {
+    const [, mime = '?', data = ''] = /^data:([^;,]+);base64,(.*)$/s.exec(url ?? '') ?? [];
+    images.push({ mime, bytes: Math.floor(data.length * 3 / 4) });
+  };
+  for (const turn of turns) {
+    if (!Array.isArray(turn.content)) continue;
+    for (const part of turn.content) {
+      if (part.type === 'image_url') fromDataUrl(part.image_url?.url);
+      else if (part.type === 'input_image') fromDataUrl(part.image_url);
+      else if (part.type === 'image') images.push({ mime: part.source?.media_type ?? '?', bytes: Math.floor((part.source?.data?.length ?? 0) * 3 / 4) });
+    }
+  }
+  return images;
+}
 
 // API formats the mock can speak, by path. OpenCode Go's own mismatch errors are
 // returned for formats left out of --formats (to exercise format detection).
@@ -173,7 +193,7 @@ function writerFor(format, res, body, counter) {
 }
 
 export function createMockServer(options = {}) {
-  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1, empty: false, 'code-lines': 0, formats: 'chat,responses,messages', ...options };
+  const opts = { port: 8090, tps: 60, latency: 400, fail: null, reasoning: false, repeat: 1, empty: false, 'code-lines': 0, formats: 'chat,responses,messages', 'no-vision': false, ...options };
   const formats = new Set(String(opts.formats).split(',').map((f) => f.trim()));
   let counter = 0;
 
@@ -214,9 +234,13 @@ export function createMockServer(options = {}) {
       return sendJSON(res, failStatus, { error: { message: messages[failStatus] ?? `Mock server configured to fail (${failStatus})` } });
     }
 
+    const images = requestImages(format, body);
+    if (images.length && opts['no-vision']) {
+      return sendJSON(res, 400, { error: { message: 'image input is not supported - hint: if this is unexpected, you may need to provide the mmproj' } });
+    }
+    const seen = images.length ? `Received ${images.length} image${images.length === 1 ? '' : 's'} (${images.map((i) => `${i.mime}, ${Math.round(i.bytes / 1024)} KB`).join('; ')}).\n\n` : '';
     const answer = opts.empty ? ''
-      : opts['code-lines'] ? codeBlock(opts['code-lines'])
-      : RESPONSES[counter++ % RESPONSES.length].repeat(opts.repeat);
+      : seen + (opts['code-lines'] ? codeBlock(opts['code-lines']) : RESPONSES[counter++ % RESPONSES.length].repeat(opts.repeat));
     const writer = writerFor(format, res, body, counter);
 
     if (!body.stream) return sendJSON(res, 200, writer.json(answer));

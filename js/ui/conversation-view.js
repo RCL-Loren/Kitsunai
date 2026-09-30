@@ -2,6 +2,7 @@ import { html, $ } from './dom.js';
 import { mascot } from './mascot.js';
 import { messageElement, messageActions, thoughts, statusLine } from './message-view.js';
 import { toast } from './toast.js';
+import { hydrateImages, openLightbox } from './attachment-view.js';
 import { announce } from './announce.js';
 import { createComposer } from './composer.js';
 import { emit, on } from '../events.js';
@@ -67,6 +68,8 @@ export async function renderConversation(main, { id, modelId }) {
   }
 
   log.addEventListener('click', async (e) => {
+    const image = e.target.closest('.message-image');
+    if (image) return openLightbox(image.dataset.attachmentId, image.dataset.name);
     const button = e.target.closest('[data-msg-action]');
     if (!button) return;
     const el = button.closest('.message');
@@ -74,9 +77,15 @@ export async function renderConversation(main, { id, modelId }) {
     if (!message) return;
     try {
       const action = button.dataset.msgAction;
-      if (action === 'copy') { await copyRendered($('.message-body', el)); flash(button, 'Copied'); announce('Message copied'); }
+      if (action === 'copy') {
+        const body = $('.message-body', el);
+        if (body) await copyRendered(body);
+        else await copyMarkdown(message); // image-only message: its placeholders
+        flash(button, 'Copied');
+        announce('Message copied');
+      }
       if (action === 'copy-markdown') { await copyMarkdown(message); flash(button, 'Copied'); announce('Markdown copied'); }
-      if (action === 'export') exportMessage(message);
+      if (action === 'export') await exportMessage(message);
     } catch (err) {
       toast(`Couldn’t copy: ${err.message}`, { kind: 'error' });
     }
@@ -118,6 +127,7 @@ export async function renderConversation(main, { id, modelId }) {
     // Native scroll anchoring keeps the reader's place, including when
     // content-visibility swaps size estimates for real sizes above the viewport.
     sentinel.after(fragment);
+    hydrateImages(log);
     oldestRendered = start;
     if (oldestRendered === 0) {
       observer.disconnect();
@@ -134,6 +144,7 @@ export async function renderConversation(main, { id, modelId }) {
     oldestRendered = Math.max(0, messages.length - PAGE_SIZE);
     for (const m of messages.slice(oldestRendered)) fragment.append(render(m));
     log.append(fragment);
+    hydrateImages(log);
     if (oldestRendered > 0) {
       sentinel = document.createElement('div');
       sentinel.className = 'history-sentinel';
@@ -220,6 +231,7 @@ export async function renderConversation(main, { id, modelId }) {
         const el = render(message);
         el.classList.add('message-enter');
         log.append(el);
+        hydrateImages(el);
         scrollToBottom();
       },
       onStreamStart() {
@@ -282,8 +294,8 @@ export async function renderConversation(main, { id, modelId }) {
 
   const composer = createComposer({
     placeholder: `Message ${modelName}…`,
-    onSend: (text) => session.send(text).catch((err) => {
-      composer.restore(text);
+    onSend: (text, images) => session.send(text, images).catch((err) => {
+      composer.restore(text, images);
       toast(`Couldn’t send: ${err.message}`, { kind: 'error', duration: 6000 });
     }),
     onStop: () => session.stop(),

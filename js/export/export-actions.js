@@ -1,6 +1,8 @@
 // Browser side of copy/export: clipboard, downloads, and gathering data.
 
-import { conversationToMarkdown, exportFilename } from './markdown-export.js';
+import { conversationToMarkdown, exportFilename, messageMarkdown, attachmentPaths } from './markdown-export.js';
+import { createZip } from './zip.js';
+import { getAttachment } from '../data/attachments.js';
 import { deriveTitle } from '../chat/session.js';
 import { getConversation } from '../data/conversations.js';
 import { listMessages } from '../data/messages.js';
@@ -9,7 +11,11 @@ import { getSettings } from '../data/settings.js';
 import { presetFor } from '../providers/index.js';
 
 export function downloadText(filename, text) {
-  const url = URL.createObjectURL(new Blob([text], { type: 'text/markdown;charset=utf-8' }));
+  downloadBlob(filename, new Blob([text], { type: 'text/markdown;charset=utf-8' }));
+}
+
+export function downloadBlob(filename, blob) {
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
@@ -58,12 +64,29 @@ export async function copyRendered(bodyEl) {
   }
 }
 
-// Copy Markdown: the canonical source, exactly as stored.
-export const copyMarkdown = (message) => navigator.clipboard.writeText(message.markdown);
+// Copy Markdown: the canonical source, exactly as stored; images become
+// placeholders like [image: photo.png].
+export const copyMarkdown = (message) => navigator.clipboard.writeText(messageMarkdown(message));
 
-// Export Markdown (one message): the original Markdown, unchanged.
+// Markdown with images → a .zip of the .md and its attachments/ folder, with
+// relative image links (Obsidian and other Markdown apps resolve them).
+// Without images → the plain .md, as before.
+async function exportWithImages(mdFilename, messages, toMarkdown) {
+  const paths = attachmentPaths(messages);
+  if (!paths.size) return downloadText(mdFilename, toMarkdown(null));
+  const encoder = new TextEncoder();
+  const entries = [{ name: mdFilename, data: encoder.encode(toMarkdown((ref) => paths.get(ref.id))) }];
+  for (const [id, path] of paths) {
+    const record = await getAttachment(id);
+    if (record) entries.push({ name: path, data: new Uint8Array(await record.blob.arrayBuffer()) });
+  }
+  downloadBlob(mdFilename.replace(/\.md$/, '.zip'), new Blob([createZip(entries)], { type: 'application/zip' }));
+}
+
+// Export Markdown (one message): the original Markdown, unchanged, plus its images.
 export function exportMessage(message) {
-  downloadText(exportFilename(deriveTitle(message.markdown), message.createdAt, 'message'), message.markdown);
+  const title = message.markdown.trim() ? deriveTitle(message.markdown) : 'image';
+  return exportWithImages(exportFilename(title, message.createdAt, 'message'), [message], (imagePath) => messageMarkdown(message, imagePath));
 }
 
 export async function exportConversation(id) {
@@ -71,12 +94,12 @@ export async function exportConversation(id) {
   if (!conversation) throw new Error('Conversation not found');
   const [messages, model] = await Promise.all([listMessages(id), getModel(conversation.modelId)]);
   const settings = getSettings();
-  const markdown = conversationToMarkdown(conversation, messages, {
+  await exportWithImages(exportFilename(conversation.title, conversation.createdAt), messages, (imagePath) => conversationToMarkdown(conversation, messages, {
     displayName: settings.displayName,
     modelName: model?.name ?? conversation.modelName,
     provider: model ? presetFor(model.preset).label : undefined,
     tags: settings.defaultTags,
     frontmatter: settings.exportFrontmatter,
-  });
-  downloadText(exportFilename(conversation.title, conversation.createdAt), markdown);
+    imagePath,
+  }));
 }
