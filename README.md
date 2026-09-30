@@ -1,6 +1,6 @@
 # KitsunAI
 
-A beautiful, anime-inspired, local-first LLM chat client built from boring web technology: fast streaming, first-class technical Markdown (math, code, tables), multiple configurable models, and one-click Obsidian export.
+A beautiful, anime-inspired, local-first LLM chat client built from boring web technology: fast streaming, first-class technical Markdown (math, code, tables), multiple configurable models, and one-click Obsidian Compatible Markdown export.
 
 Vanilla HTML, CSS and ES modules. No framework, no build step, no runtime dependencies. Everything is stored in your browser (IndexedDB).
 
