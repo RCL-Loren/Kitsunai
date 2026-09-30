@@ -16,6 +16,23 @@ Open the page, add a model (the setup screen walks you through it), and start a 
 
 Serve with `tools/serve.js`, not another static server: it also provides the **local relay** that providers without CORS support need (see below). Opening `index.html` from `file://` is not supported.
 
+## Stopping it
+
+In the terminal running `node tools/serve.js`, press **Ctrl+C**. That's a clean shutdown: the server holds no data, since conversations, models and settings all live in your browser, so nothing is lost. Close the KitsunAI tab or leave it open; it picks up where you left off next time you start the server.
+
+Let any response that's still streaming finish first (or press Stop). Stopping the server mid-reply cuts the connection, and the partial reply is saved marked "Stopped".
+
+If the server was started in the background or from a terminal you've closed, find it by port and stop it:
+
+```sh
+lsof -i :8000                # shows the node process and its PID
+kill <PID>                   # or, in one step:  kill $(lsof -t -i :8000)
+```
+
+On Windows, use `netstat -ano | findstr :8000` to find the PID, then `taskkill /PID <PID>`.
+
+The mock server (`node tools/mock-server.js`, port 8090) is stopped the same way.
+
 ## Models and providers
 
 KitsunAI streams from three API formats: **Chat Completions** (OpenAI-compatible), **Responses** (OpenAI) and **Anthropic Messages**. Each model stores its format. KitsunAI detects it when you save or test a model, and corrects it automatically if a chat hits the wrong one. You can also set it by hand. Presets fill in the endpoint:
