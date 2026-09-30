@@ -1,24 +1,32 @@
 // Minimal promise wrapper over IndexedDB. Schema: DevDocs/KitsunAI-Development-Plan.md §3.
 
 const DB_NAME = 'kitsunai';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbPromise;
 
-function upgrade(db) {
-  const conversations = db.createObjectStore('conversations', { keyPath: 'id' });
-  conversations.createIndex('updatedAt', 'updatedAt');
-  const messages = db.createObjectStore('messages', { keyPath: 'id' });
-  messages.createIndex('byConversation', ['conversationId', 'createdAt']);
-  db.createObjectStore('models', { keyPath: 'id' });
-  db.createObjectStore('settings', { keyPath: 'key' });
+// Each step upgrades from the previous version, so existing data is kept.
+function upgrade(db, oldVersion) {
+  if (oldVersion < 1) {
+    const conversations = db.createObjectStore('conversations', { keyPath: 'id' });
+    conversations.createIndex('updatedAt', 'updatedAt');
+    const messages = db.createObjectStore('messages', { keyPath: 'id' });
+    messages.createIndex('byConversation', ['conversationId', 'createdAt']);
+    db.createObjectStore('models', { keyPath: 'id' });
+    db.createObjectStore('settings', { keyPath: 'key' });
+  }
+  if (oldVersion < 2) {
+    // Image attachments on user messages: { id, conversationId, messageId, name, mime, width, height, size, blob }
+    const attachments = db.createObjectStore('attachments', { keyPath: 'id' });
+    attachments.createIndex('conversationId', 'conversationId');
+  }
 }
 
 export function openDB() {
   dbPromise ??= new Promise((resolve, reject) => {
     if (!globalThis.indexedDB) return reject(new Error('IndexedDB is not available in this browser.'));
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => upgrade(request.result);
+    request.onupgradeneeded = (e) => upgrade(request.result, e.oldVersion);
     request.onsuccess = () => {
       const db = request.result;
       // Another tab upgraded the schema: close so it can proceed; next call reopens.
@@ -26,7 +34,9 @@ export function openDB() {
       resolve(db);
     };
     request.onerror = () => reject(request.error);
-    request.onblocked = () => reject(new Error('KitsunAI is open in another tab with an older version. Close it and reload.'));
+    // An upgrade waits for other open tabs to close their connection. Our tabs do
+    // so on 'versionchange' (above), after which the upgrade continues on its own.
+    request.onblocked = () => console.warn('[KitsunAI] Waiting for other KitsunAI tabs to release the database…');
   });
   return dbPromise.catch((err) => { dbPromise = undefined; throw err; });
 }

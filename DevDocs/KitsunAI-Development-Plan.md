@@ -62,7 +62,7 @@ tests/    serve.test.js sse.test.js math-plugin.test.js blocks.test.js export.te
 
 Pure modules must not touch `window` or `document`, so `node:test` can import them directly. These are `sse.js`, `math-plugin.js`, `blocks.js`, `markdown-export.js`, and the `openai.js` request/parse logic (with an injected `fetch`).
 
-## 3. Data Model — IndexedDB `kitsunai` v1
+## 3. Data Model — IndexedDB `kitsunai` v2
 
 | Store | keyPath | Indexes | Fields |
 |---|---|---|---|
@@ -70,6 +70,7 @@ Pure modules must not touch `window` or `document`, so `node:test` can import th
 | `messages` | `id` | `byConversation: [conversationId, createdAt]` | `id, conversationId, role, markdown, createdAt, metadata` |
 | `models` | `id` | — | `id, name, apiFormat, preset, endpoint, model, credentials, useProxy, systemPrompt, parameters` |
 | `settings` | `key` | — | `{key, value}` rows |
+| `attachments` (v2) | `id` | `conversationId` | `id, conversationId, messageId, name, mime, width, height, size, blob` |
 
 Fields:
 - `modelName` is a snapshot, so exports and orphaned conversations still name the model.
@@ -164,6 +165,22 @@ Some providers serve a model through only one API format. OpenCode Go, for examp
   - **Test connection** in the form updates the select. The list's **Test** button saves the detected format.
   - **Save** runs detection whenever the connection details (endpoint, model ID, key, relay, format) are new or changed and weren't just tested. A failed check still saves, with a warning (offline, key to be fixed later). Renaming alone makes no requests.
   - **Chat self-correction:** if a reply fails with a wrong-format error before any text arrives, the session detects the format, saves it on the model, shows a toast and retries once in the same reply. This covers models saved before detection existed and providers that change a model's format. If detection fails, the original error stands, and it says to run Test connection.
+
+## 4c. Image Attachments (added after V1)
+
+- **Composer:** the 📎 button, paste, or drop onto the message box; up to 4 images per message; thumbnail chips with a remove button.
+- **Preparation** (`js/attachments/images.js`, canvas, no dependencies):
+  - PNG/JPEG within 1,568 px and 1.5 MB pass through untouched.
+  - Everything else is re-encoded: PNG for PNG/GIF/WebP (text and transparency stay sharp; WebP is converted because some local servers can't decode it), JPEG for photos and for PNGs that come out too large.
+- **Storage:** images are Blobs in the `attachments` store (DB v2; the upgrade keeps v1 data). A user message stores references (`attachments: [{ id, name, mime, width, height }]`), written in the same transaction as the blobs. Deleting a conversation deletes its images.
+- **Sending:** the session loads image data for every message in context, since history images are re-sent. Data URLs are cached per image. Each adapter has its own shape:
+  - Chat Completions: `image_url`
+  - Responses: `input_image`
+  - Anthropic Messages: base64 `image` blocks before the text
+- **Errors:** "doesn't accept images" wording from providers is mapped to a clear message.
+- **Display:** thumbnails on user messages, loaded lazily from IndexedDB, with a native `<dialog>` lightbox. The streaming renderer is untouched.
+- **Copy Markdown:** images become `[image: name]` placeholders.
+- **Export:** with images, a `.zip` (`js/export/zip.js`, stored entries, no dependency) holds the `.md` and `attachments/NN-M-name.ext`, linked as `![name](attachments/…)`. Without images, a plain `.md` as before.
 
 ## 5. Markdown Pipeline
 

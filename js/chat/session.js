@@ -4,6 +4,8 @@
 import { createConversation, updateConversation, getConversation } from '../data/conversations.js';
 import { addMessage } from '../data/messages.js';
 import { saveModel } from '../data/models.js';
+import { getAttachment } from '../data/attachments.js';
+import { dataUrlFor } from '../attachments/images.js';
 import { adapterFor, requestHeaders, detectFormat } from '../providers/index.js';
 import { ProviderError, isFormatMismatch } from '../providers/errors.js';
 
@@ -24,10 +26,28 @@ export function deriveTitle(markdown) {
 
 // Pure: API messages for the next reply — everything up to and including the
 // last user message (a stopped partial reply after it is left out on retry).
+// Messages with images carry their attachment references; see withImageData().
 export function contextFor(history) {
   let last = -1;
   for (let i = history.length - 1; i >= 0; i--) if (history[i].role === 'user') { last = i; break; }
-  return history.slice(0, last + 1).map((m) => ({ role: m.role, content: m.markdown }));
+  return history.slice(0, last + 1).map((m) => (m.attachments?.length
+    ? { role: m.role, content: m.markdown, attachments: m.attachments }
+    : { role: m.role, content: m.markdown }));
+}
+
+// Loads the image data for messages with attachments ({ mime, dataUrl } each).
+// Images earlier in the conversation are sent again, as the model has no memory
+// of them otherwise; data URLs are cached so that costs one read per image.
+async function withImageData(context) {
+  return Promise.all(context.map(async ({ attachments, ...m }) => {
+    if (!attachments) return m;
+    const images = [];
+    for (const ref of attachments) {
+      const record = await getAttachment(ref.id);
+      if (record) images.push({ mime: record.mime, dataUrl: await dataUrlFor(record.id, record.blob) });
+    }
+    return images.length ? { ...m, images } : m;
+  }));
 }
 
 // handlers: onConversationCreated(conv), onUserMessage(msg), onStreamStart(),
@@ -47,7 +67,7 @@ export function createChatSession({ conversation = null, model, messages = [], h
     const result = { text: '', reasoning: '', usage: undefined, finishReason: undefined, error: null, aborted: false };
     try {
       const events = adapterFor(model).stream(model, {
-        messages: contextFor(history),
+        messages: await withImageData(contextFor(history)),
         signal: controller.signal,
         headers: requestHeaders(model, conv.id), // conversation ID = stable session ID
       });
@@ -126,15 +146,17 @@ export function createChatSession({ conversation = null, model, messages = [], h
 
     // Throws only if the user's message couldn't be saved (the caller restores
     // the draft so nothing typed is lost); stream problems go to onStreamEnd.
-    async send(markdown) {
-      if (busy || !markdown.trim()) return false;
+    // images: prepared images from the composer ({ blob, name, mime, width, height }).
+    async send(markdown, images = []) {
+      if (busy || (!markdown.trim() && !images.length)) return false;
       busy = true;
       try {
         if (!conv) {
-          conv = await createConversation({ title: deriveTitle(markdown), modelId: model.id, modelName: model.name });
+          const title = markdown.trim() ? deriveTitle(markdown) : `Image: ${images[0].name}`;
+          conv = await createConversation({ title, modelId: model.id, modelName: model.name });
           handlers.onConversationCreated?.(conv);
         }
-        const userMessage = await addMessage({ conversationId: conv.id, role: 'user', markdown });
+        const userMessage = await addMessage({ conversationId: conv.id, role: 'user', markdown, images });
         history.push(userMessage);
         await touch();
         handlers.onUserMessage?.(userMessage);

@@ -52,3 +52,35 @@ test('a wrong format fails with the mismatch message the UI explains', async () 
     /different API format — run Test connection/,
   );
 });
+
+// ── Images, end to end ───────────────────────────────────────────────────────
+
+const png = { mime: 'image/png', dataUrl: `data:image/png;base64,${Buffer.alloc(3000, 7).toString('base64')}` };
+const jpg = { mime: 'image/jpeg', dataUrl: `data:image/jpeg;base64,${Buffer.alloc(6000, 9).toString('base64')}` };
+
+for (const format of ['chat', 'responses', 'messages']) {
+  test(`${format}: images in history and the new turn all reach the provider`, async () => {
+    const messages = [
+      { role: 'user', content: 'first', images: [png] },
+      { role: 'assistant', content: 'noted' },
+      { role: 'user', content: 'and this?', images: [jpg] },
+    ];
+    let text = '';
+    for await (const e of adapters[format].stream(modelFor(format), { messages })) if (e.type === 'text') text += e.text;
+    assert.match(text, /^Received 2 images \(image\/png, 3 KB; image\/jpeg, 6 KB\)\./);
+  });
+}
+
+test('a text-only model rejects images with a clear message', async () => {
+  const server = createMockServer({ tps: 20000, latency: 0, 'no-vision': true });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  try {
+    const m = { ...modelFor('chat'), endpoint: `http://127.0.0.1:${server.address().port}/v1` };
+    await assert.rejects(
+      (async () => { for await (const _ of adapters.chat.stream(m, { messages: [{ role: 'user', content: 'x', images: [png] }] })) { /* drain */ } })(),
+      /doesn’t accept images/,
+    );
+  } finally {
+    server.close();
+  }
+});

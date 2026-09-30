@@ -32,7 +32,8 @@ export function messageElement(message, { label } = {}) {
   const { reasoning, status, finishReason } = message.metadata ?? {};
   el.innerHTML = html`
     ${reasoning ? thoughts(reasoning) : ''}
-    <div class="message-body md">${raw(messageHtml(message))}</div>
+    ${message.attachments?.length ? imageGallery(message.attachments) : ''}
+    ${message.markdown.trim() ? html`<div class="message-body md">${raw(messageHtml(message))}</div>` : ''}
     ${statusLine(status, finishReason)}
     ${messageActions()}`;
   return el;
@@ -45,6 +46,14 @@ export const messageActions = () => html`
     <button type="button" class="action-btn" data-msg-action="copy-markdown">Copy Markdown</button>
     <button type="button" class="action-btn" data-msg-action="export">Export Markdown</button>
   </div>`;
+
+// Thumbnails for attached images; hydrateImages() fills in their src.
+function imageGallery(refs) {
+  return html`<div class="message-images">${refs.map((ref) => html`
+    <button type="button" class="message-image" data-attachment-id="${ref.id}" data-name="${ref.name}" aria-label="View ${ref.name}">
+      <img data-attachment-id="${ref.id}" alt="${ref.name}" width="${ref.width}" height="${ref.height}" loading="lazy" decoding="async">
+    </button>`)}</div>`;
+}
 
 export function statusLine(status, finishReason) {
   if (status === 'stopped') return html`<p class="message-status">Stopped</p>`;

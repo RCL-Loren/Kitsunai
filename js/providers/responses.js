@@ -17,12 +17,20 @@ export async function test(model, { signal, fetchImpl, headers = {} } = {}) {
   return 'Connected — the model answered.';
 }
 
+// Pure: a message with images becomes input_text + input_image parts.
+export function responsesInput({ role, content, images }) {
+  if (!images?.length) return { role, content };
+  const parts = content ? [{ type: 'input_text', text: content }] : [];
+  for (const img of images) parts.push({ type: 'input_image', image_url: img.dataUrl });
+  return { role, content: parts };
+}
+
 // Pure: the Responses request body. The system prompt becomes `instructions`.
 export function buildResponsesBody(model, messages) {
   const { temperature, top_p, max_tokens, extra } = model.parameters ?? {};
   const body = {
     model: model.model,
-    input: messages.map((m) => ({ role: m.role, content: m.content })),
+    input: messages.map(responsesInput),
     stream: true,
   };
   if (model.systemPrompt) body.instructions = model.systemPrompt;

@@ -23,14 +23,31 @@ export async function test(model, { signal, fetchImpl, headers = {} } = {}) {
 
 export const listModels = (model, options = {}) => listAll(model, { ...options, ...AUTH });
 
+// Pure: a data URL → an Anthropic base64 image block.
+function imageBlock(img) {
+  const [, data = ''] = img.dataUrl.split(',');
+  return { type: 'image', source: { type: 'base64', media_type: img.mime, data } };
+}
+
+// Pure: content blocks for one turn; images first, as the API recommends.
+const blocks = ({ content, images }) => [
+  ...(images ?? []).map(imageBlock),
+  ...(content ? [{ type: 'text', text: content }] : []),
+];
+
 // Pure: turns must alternate and start with the user, so consecutive turns from
-// the same role (e.g. a user retrying after an error) are merged.
+// the same role (e.g. a user retrying after an error) are merged. Turns without
+// images stay plain strings.
 export function alternate(messages) {
   const out = [];
   for (const m of messages) {
     const last = out.at(-1);
-    if (last?.role === m.role) last.content = `${last.content}\n\n${m.content}`;
-    else out.push({ role: m.role, content: m.content });
+    if (last?.role === m.role) {
+      if (typeof last.content === 'string' && !m.images?.length) last.content = `${last.content}\n\n${m.content}`;
+      else last.content = [...(typeof last.content === 'string' ? blocks({ content: last.content }) : last.content), ...blocks(m)];
+    } else {
+      out.push({ role: m.role, content: m.images?.length ? blocks(m) : m.content });
+    }
   }
   while (out[0]?.role === 'assistant') out.shift();
   return out;

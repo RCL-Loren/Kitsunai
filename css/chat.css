@@ -284,3 +284,83 @@
 
 /* New messages rise in; history renders without motion. */
 .message-enter { animation: rise-in var(--dur-slow) var(--ease) both; }
+
+/* ── Image attachments ───────────────────────────────────────────────────── */
+
+.composer-attach { width: 36px; height: 36px; flex: none; align-self: flex-end; color: var(--muted); }
+.composer-attach:hover { color: var(--foxfire); }
+.composer-box.drop-target { border-color: transparent; box-shadow: var(--glow); background: color-mix(in oklab, var(--foxfire-deco) 8%, var(--surface)); }
+
+.composer-attachments {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+}
+.attachment-chip { position: relative; }
+.attachment-chip img {
+  display: block;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: 1px solid var(--border-lit);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.attachment-remove {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--raised);
+  color: var(--text);
+  font-size: .7rem;
+}
+.attachment-remove:hover { color: var(--danger); border-color: var(--danger); }
+
+.message-images { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); margin-bottom: var(--space-2); }
+.message-image {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+  cursor: zoom-in;
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.message-image:hover { border-color: var(--border-lit); box-shadow: var(--glow); }
+.message-image img { display: block; max-width: 240px; max-height: 200px; width: auto; height: auto; object-fit: contain; }
+.message-image.missing { min-width: 120px; min-height: 60px; }
+.message-image.missing::after { content: "image missing"; display: block; padding: var(--space-3); color: var(--muted); font-size: .8rem; }
+
+.lightbox {
+  max-width: min(94vw, 1600px);
+  max-height: 92vh;
+  padding: 0;
+  border: 1px solid var(--border-lit);
+  border-radius: var(--radius-card);
+  background: var(--bg);
+  overflow: hidden;
+  cursor: zoom-out;
+}
+.lightbox::backdrop { background: rgb(5 6 12 / .75); }
+.lightbox img { display: block; max-width: min(94vw, 1600px); max-height: 92vh; object-fit: contain; }
+.lightbox-close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / .55);
+  color: #fff;
+}

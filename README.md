@@ -60,8 +60,9 @@ The relay stores nothing, never logs request bodies or keys, answers only on `lo
 
 - **Enter** sends, **Shift+Enter** adds a new line; this can be switched in Settings. **⌘/Ctrl+Enter** always sends. **Esc** stops a response.
 - Math renders with KaTeX: `$…$`, `$$…$$`, `\(…\)`, `\[…\]` and ```` ```math ```` blocks. Chemistry works with mhchem: `$\ce{2H2 + O2 -> 2H2O}$`, and units with `$\pu{8.314 J K^-1 mol^-1}$`.
+- **Images:** attach up to 4 per message with the 📎 button, by pasting, or by dropping them on the message box (PNG, JPEG, WebP, GIF). Large images are downscaled to 1,568 px before sending. The model must accept images (a vision model); others reply with a clear error. Images earlier in a conversation are sent again with each new message.
 - Each message has **Copy** (formatted, with plain text and TeX math as a fallback), **Copy Markdown** (the exact source) and **Export Markdown**.
-- **Export** in the conversation header (or ⤓ in the sidebar) saves the whole conversation as Obsidian-ready Markdown, with optional YAML frontmatter (title, dates, model, provider, tags).
+- **Export** in the conversation header (or ⤓ in the sidebar) saves the whole conversation as Obsidian-ready Markdown, with optional YAML frontmatter (title, dates, model, provider, tags). Conversations with images download as a `.zip` of the `.md` plus an `attachments/` folder, with relative image links that Obsidian resolves; unzip it into your vault. **Copy Markdown** replaces images with placeholders like `[image: photo.png]`.
 - Settings: theme (System, Dark, Light), your name for exports, default tags, and the send key.
 
 ### Privacy
@@ -87,6 +88,7 @@ Add a **Custom** model with endpoint `http://127.0.0.1:8090/v1` and model `mock-
 | `--empty` | answer with no content |
 | `--fail http`, `--fail 401`, `--fail 429`, … | fail with that HTTP status |
 | `--fail mid` | drop the connection halfway through |
+| `--no-vision` | reject requests containing images, as a text-only model would |
 | `--formats chat,responses,messages` | API formats to accept (default: all). Others get OpenCode Go's "not supported" errors, for testing format detection. |
 
 Dev pages:
@@ -127,6 +129,6 @@ How streaming stays fast: finished blocks of a reply are rendered once and never
 
 ## Known limitations (V1)
 
-- No attachments, search, sync, message editing or branching.
+- Images only (no PDFs or other files). No search, sync, message editing or branching.
 - Code blocks over 32 KB are shown without syntax highlighting.
 - A single extremely large reply (about 200 KB, with thousands of formulas) takes about half a second to reopen.
