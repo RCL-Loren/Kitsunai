@@ -184,6 +184,7 @@ Some providers serve a model through only one API format. OpenCode Go, for examp
   - KaTeX output is cached in a `Map`, keyed as `(display?'D':'I')+src`, capped at about 2000 entries (clear oldest).
   - `\[…\]` is treated as math, not as escaped brackets, because LLMs commonly write display math that way.
   - ```` ```math ```` fences (GitHub style) render as display math.
+  - KaTeX's official **mhchem** extension is loaded after KaTeX, so `\ce{…}` (chemical equations) and `\pu{…}` (units) work in any math. Node tests load it through `tests/vendor.js`.
 - Code uses no programming ligatures, so `=>` never renders as `⇒`. highlight.js adds latex, matlab, julia, verilog, vhdl, fortran and dockerfile to its common bundle.
 - User and assistant messages use the same `renderMarkdown`.
 

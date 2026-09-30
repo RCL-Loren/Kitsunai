@@ -1,14 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { markdownit, hljs, katex } from './vendor.js';
 import { createMarkdownRenderer, HIGHLIGHT_LIMIT } from '../js/render/markdown.js';
 
-const require = createRequire(import.meta.url);
-const render = createMarkdownRenderer({
-  markdownit: require('../vendor/markdown-it/markdown-it.min.js'),
-  hljs: require('../vendor/highlight/highlight.min.js'),
-  katex: require('../vendor/katex/katex.min.js'),
-});
+const render = createMarkdownRenderer({ markdownit, hljs, katex });
 
 test('fenced code gets a header, copy button, and highlighting', () => {
   const html = render('```python\nprint("hi")\n```');
@@ -86,4 +81,13 @@ test('chunked rendering wraps groups of top-level blocks and is otherwise identi
   const unwrapped = chunked.replace(/<\/div><div class="frozen-chunk">/g, '').replace(/^<div class="frozen-chunk">/, '').replace(/<\/div>$/, '');
   assert.equal(unwrapped, plain);
   assert.equal(render('Short.\n\nMessage.', { chunk: 24 }), render('Short.\n\nMessage.'), 'short messages are not wrapped');
+});
+
+test('chemistry via mhchem: \\ce and \\pu render without errors', () => {
+  for (const src of ['$\\ce{2H2 + O2 -> 2H2O}$', '$\\ce{N2 + 3H2 <=> 2NH3}$', '$\\ce{Fe^{3+}(aq) + 3OH^-(aq) -> Fe(OH)3 v}$', '$\\pu{8.314 J K^-1 mol^-1}$']) {
+    const html = render(src);
+    assert.match(html, /class="katex"/, src);
+    assert.doesNotMatch(html, /katex-error/, src);
+  }
+  assert.match(render('$\\ce{H2O}$'), /<annotation encoding="application\/x-tex">\\ce\{H2O\}<\/annotation>/, 'TeX source kept for copy');
 });

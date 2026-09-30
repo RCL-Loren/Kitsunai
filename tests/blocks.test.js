@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
 import { findStableBoundary, scanBlocks } from '../js/render/blocks.js';
+import { markdownit, hljs, katex } from './vendor.js';
 import { createMarkdownRenderer } from '../js/render/markdown.js';
 
 const b = findStableBoundary;
@@ -48,12 +48,7 @@ test('scans from a previous boundary', () => {
 });
 
 test('frozen chunks + tail render the same as the whole document', () => {
-  const require = createRequire(import.meta.url);
-  const render = createMarkdownRenderer({
-    markdownit: require('../vendor/markdown-it/markdown-it.min.js'),
-    hljs: require('../vendor/highlight/highlight.min.js'),
-    katex: require('../vendor/katex/katex.min.js'),
-  });
+  const render = createMarkdownRenderer({ markdownit, hljs, katex });
   const doc = [
     '## Title', '', 'Intro with $x$.', '', '$$', 'a', '', 'b', '$$', '', '```js', 'const a = 1;', '', 'const b = 2;', '```', '',
     '| a | b |', '|---|---|', '| 1 | 2 |', '', '- one', '', '- two', '', '> quote', '', 'End.', '',

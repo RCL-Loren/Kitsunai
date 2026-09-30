@@ -1,10 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createRequire } from 'node:module';
+import { markdownit } from './vendor.js';
 import { mathPlugin } from '../js/render/math-plugin.js';
-
-const require = createRequire(import.meta.url);
-const markdownit = require('../vendor/markdown-it/markdown-it.min.js');
 
 const md = markdownit().use(mathPlugin, { render: (tex, display) => `[${display ? 'D' : 'I'}:${tex}]` });
 const render = (src) => md.render(src).trim();

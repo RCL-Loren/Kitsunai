@@ -1,6 +1,6 @@
 # KitsunAI
 
-A beautiful, anime-inspired, local-first LLM chat client built from boring web technology: fast streaming, first-class technical Markdown (math, code, tables), multiple configurable models, and one-click Obsidian Compatible Markdown export.
+A beautiful, anime-inspired, local-first LLM chat client built from boring web technology: fast streaming, first-class technical Markdown (math, chemistry, code, tables), multiple configurable models, and one-click Obsidian Compatible Markdown export.
 
 Vanilla HTML, CSS and ES modules. No framework, no build step, no runtime dependencies. Everything is stored in your browser (IndexedDB).
 
@@ -59,6 +59,7 @@ The relay stores nothing, never logs request bodies or keys, answers only on `lo
 ## Using it
 
 - **Enter** sends, **Shift+Enter** adds a new line; this can be switched in Settings. **⌘/Ctrl+Enter** always sends. **Esc** stops a response.
+- Math renders with KaTeX: `$…$`, `$$…$$`, `\(…\)`, `\[…\]` and ```` ```math ```` blocks. Chemistry works with mhchem: `$\ce{2H2 + O2 -> 2H2O}$`, and units with `$\pu{8.314 J K^-1 mol^-1}$`.
 - Each message has **Copy** (formatted, with plain text and TeX math as a fallback), **Copy Markdown** (the exact source) and **Export Markdown**.
 - **Export** in the conversation header (or ⤓ in the sidebar) saves the whole conversation as Obsidian-ready Markdown, with optional YAML frontmatter (title, dates, model, provider, tags).
 - Settings: theme (System, Dark, Light), your name for exports, default tags, and the send key.
@@ -103,7 +104,7 @@ kitsunai.debug.startProfile();  /* stream, type, scroll */  kitsunai.debug.stopP
 
 ### Vendored libraries
 
-markdown-it, highlight.js, KaTeX and the fonts (Inter, JetBrains Mono, Zen Maru Gothic; all OFL) are pinned in `vendor/`, with versions listed in `vendor/VERSIONS.md`. To update them, change the versions in `scripts/vendor.sh`, run it, and commit `vendor/`.
+markdown-it, highlight.js, KaTeX (with the mhchem extension) and the fonts (Inter, JetBrains Mono, Zen Maru Gothic; all OFL) are pinned in `vendor/`, with versions listed in `vendor/VERSIONS.md`. To update them, change the versions in `scripts/vendor.sh`, run it, and commit `vendor/`.
 
 ### Layout
 

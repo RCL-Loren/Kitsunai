@@ -13,6 +13,7 @@
   <script src="../vendor/markdown-it/markdown-it.min.js" defer></script>
   <script src="../vendor/highlight/highlight.min.js" defer></script>
   <script src="../vendor/katex/katex.min.js" defer></script>
+  <script src="../vendor/katex/mhchem.min.js" defer></script>
   <style>
     body { padding: var(--space-5) var(--space-4); }
     .fixture { max-width: var(--content-width); margin: 0 auto; }
@@ -69,6 +70,12 @@ $$
 Prices are not math: the kit costs $5 and the manual $10. Escaped: \$x\$.
 
 Broken TeX shows an error, not a crash: $\frac{a$.
+
+Chemistry (mhchem): $\ce{CH4 + 2O2 -> CO2 + 2H2O}$, an equilibrium $\ce{N2 + 3H2 <=> 2NH3}$, and units $\pu{8.314 J K^-1 mol^-1}$.
+
+$$
+\ce{Fe^{3+}(aq) + 3OH^-(aq) -> Fe(OH)3 v}
+$$
 
 ## Lists
 
